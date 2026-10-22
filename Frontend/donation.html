@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    body { visibility: hidden; }
+    html[data-authed] body { visibility: visible; }
+</style>
+<script>
+(function () {
+    fetch('me.php', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.user) {
+                location.href = 'auth.html?redirect=' + encodeURIComponent(location.pathname + location.search);
+            } else {
+                document.documentElement.setAttribute('data-authed', '1');
+            }
+        })
+        .catch(function () {
+            location.href = 'auth.html';
+        });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Donations — Campus Lost & Found</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+<style>
+    .donation-hero {
+        background:
+            radial-gradient(circle at 90% 20%, rgba(255,255,255,.12), transparent 25%),
+            linear-gradient(135deg, var(--sage-dark, #496452), #263d31);
+        color: white;
+        border-radius: 16px;
+        padding: 38px;
+        margin-top: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .donation-hero::after {
+        content: "♥";
+        position: absolute;
+        right: 35px;
+        bottom: -35px;
+        font-family: Georgia, serif;
+        font-size: 180px;
+        line-height: 1;
+        color: rgba(255,255,255,.06);
+    }
+
+    .donation-hero h2 {
+        color: white;
+        max-width: 650px;
+        margin: 8px 0 10px;
+        font-size: clamp(2rem, 5vw, 3.4rem);
+    }
+
+    .donation-hero p {
+        color: rgba(255,255,255,.78);
+        max-width: 650px;
+        margin: 0;
+        font-size: 1.05rem;
+    }
+
+    .impact-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 22px;
+    }
+
+    .impact-card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .impact-number {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 1.7rem;
+        color: var(--sage-dark, #496452);
+        margin-bottom: 5px;
+    }
+
+    .impact-label {
+        color: var(--ink-soft);
+        font-size: .85rem;
+    }
+
+    .donation-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+    }
+
+    .donation-filter {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+    }
+
+    .filter-btn {
+        border: 1px solid var(--line);
+        background: white;
+        color: var(--ink-soft);
+        padding: 7px 13px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-family: var(--font-sans);
+        font-size: .82rem;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+        background: var(--sage);
+        color: white;
+        border-color: var(--sage);
+    }
+
+    .donation-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+
+    .donation-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: white;
+        overflow: hidden;
+        transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .donation-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(30, 40, 30, .08);
+    }
+
+    .donation-card-top {
+        padding: 18px 18px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .donation-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: var(--sage-light, #e5ede6);
+        display: grid;
+        place-items: center;
+        font-size: 1.35rem;
+    }
+
+    .donation-card h3 {
+        margin: 12px 18px 6px;
+    }
+
+    .donation-meta {
+        padding: 0 18px 16px;
+        color: var(--ink-soft);
+        font-size: .82rem;
+        line-height: 1.6;
+    }
+
+    .donation-footer {
+        border-top: 1px solid var(--line);
+        padding: 12px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .overdue {
+        color: var(--clay-dark, #8d4d3c);
+        background: var(--danger-bg, #f8e8e3);
+        border-radius: 20px;
+        padding: 5px 9px;
+        font-size: .72rem;
+        font-family: var(--font-mono);
+    }
+
+    .empty-donation {
+        text-align: center;
+        padding: 55px 20px;
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        color: var(--ink-soft);
+    }
+
+    .empty-donation .heart {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+
+    .how-it-works {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-top: 25px;
+    }
+
+    .step {
+        padding: 22px;
+        border-left: 3px solid var(--sage);
+    }
+
+    .step-number {
+        font-family: var(--font-mono);
+        color: var(--sage-dark, #496452);
+        font-size: .8rem;
+    }
+
+    @media (max-width: 800px) {
+        .donation-grid,
+        .impact-grid,
+        .how-it-works {
+            grid-template-columns: 1fr;
+        }
+
+        .donation-hero {
+            padding: 26px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+
+        <a class="brand" href="home.html">
+            <span class="brand-mark">L&amp;F</span>
+            Campus Lost &amp; Found
+        </a>
+
+        <nav class="nav-links">
+            <a href="home.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="admin.html">Dashboard</a>
+            <a href="donation.html" class="active">Donations</a>
+            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign in</a>
+        </nav>
+
+    </div>
+</header>
+
+<section class="section">
+    <div class="wrap">
+
+        <span class="eyebrow">Campus charity drive · Giving back</span>
+
+        <div class="donation-hero">
+            <span class="eyebrow" style="color:#cbdccc;">
+                The second life of lost things
+            </span>
+
+            <h2>Turn unclaimed items into something useful.</h2>
+
+            <p>
+                Items that remain unclaimed after the campus recovery window
+                can be donated to our charity partners — keeping useful things
+                in circulation and helping someone in need.
+            </p>
+        </div>
+
+
+        <!-- IMPACT -->
+        <div class="impact-grid">
+
+            <div class="impact-card">
+                <span class="impact-number" id="donated-count">—</span>
+                <span class="impact-label">items donated</span>
+            </div>
+
+            <div class="impact-card">
+                <span class="impact-number" id="waiting-count">—</span>
+                <span class="impact-label">items waiting for donation</span>
+            </div>
+
+            <div class="impact-card">
+                <span class="impact-number" id="community-count">—</span>
+                <span class="impact-label">Good Samaritan reports</span>
+            </div>
+
+        </div>
+
+
+        <!-- DONATION QUEUE -->
+        <div class="card" style="margin-top:30px;">
+
+            <div class="donation-toolbar">
+
+                <div>
+                    <span class="eyebrow">Donation queue</span>
+                    <h2 style="margin:5px 0 0;">Ready to make a difference</h2>
+                </div>
+
+                <div class="donation-filter">
+                    <button class="filter-btn active" data-filter="all">
+                        All
+                    </button>
+                    <button class="filter-btn" data-filter="electronics">
+                        Electronics
+                    </button>
+                    <button class="filter-btn" data-filter="clothing">
+                        Clothing
+                    </button>
+                    <button class="filter-btn" data-filter="books">
+                        Books
+                    </button>
+                    <button class="filter-btn" data-filter="other">
+                        Other
+                    </button>
+                </div>
+
+            </div>
+
+            <div id="donation-grid">
+                <p class="muted small">Loading donation queue…</p>
+            </div>
+
+        </div>
+
+
+        <!-- HOW IT WORKS -->
+        <div style="margin-top:40px;">
+
+            <span class="eyebrow">Our process</span>
+            <h2>From lost to useful again.</h2>
+
+            <div class="how-it-works">
+
+                <div class="step">
+                    <span class="step-number">01 / RECOVER</span>
+                    <h3>We wait</h3>
+                    <p class="small muted">
+                        Found items stay in the Lost &amp; Found system during
+                        the seven-day claim window.
+                    </p>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">02 / VERIFY</span>
+                    <h3>We check</h3>
+                    <p class="small muted">
+                        Items are reviewed to make sure they are suitable
+                        for donation and no active claim remains.
+                    </p>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">03 / GIVE</span>
+                    <h3>We donate</h3>
+                    <p class="small muted">
+                        Suitable items are sent to the campus charity drive,
+                        giving them a useful second life.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<footer>
+    <div class="wrap">
+        Campus Lost &amp; Found — a student affairs digital initiative.
+    </div>
+</footer>
+
+<script src="js/app.js"></script>
+
+<script>
+
+let donationItems = [];
+
+
+/* ---------------------------------------
+   LOAD DATA
+--------------------------------------- */
+
+async function loadDonations() {
+
+    try {
+
+        const result = await api('browse.php?type=found&sort=newest');
+
+        donationItems = result.items || [];
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const queue = donationItems
+            .filter(item =>
+                (item.status === 'open' || item.status === 'matched') &&
+                item.donate_after &&
+                new Date(item.donate_after + 'T00:00:00') <= today
+            )
+            .sort((a, b) =>
+                new Date(a.donate_after) -
+                new Date(b.donate_after)
+            );
+
+
+        /*
+         * Dashboard statistics
+         */
+        document.getElementById('waiting-count').textContent =
+            queue.length;
+
+
+        /*
+         * Load total donated items from dashboard
+         */
+        try {
+
+            const stats = await api('dashboard.php');
+
+            document.getElementById('donated-count').textContent =
+                stats.donated ?? 0;
+
+        } catch (e) {
+
+            document.getElementById('donated-count').textContent = '—';
+
+        }
+
+
+        /*
+         * Good Samaritan count
+         */
+        try {
+
+            const leaderboard = await api('leaderboard.php');
+
+            const total = leaderboard.leaderboard
+                ? leaderboard.leaderboard.length
+                : 0;
+
+            document.getElementById('community-count').textContent =
+                total;
+
+        } catch (e) {
+
+            document.getElementById('community-count').textContent = '—';
+
+        }
+
+
+        renderDonations(queue);
+
+    } catch (e) {
+
+        document.getElementById('donation-grid').innerHTML =
+            `<div class="empty-donation">
+                <div class="heart">♥</div>
+                <strong>We couldn't load the donation queue.</strong>
+                <p class="small">${escapeHtml(e.message)}</p>
+            </div>`;
+
+    }
+
+}
+
+
+/* ---------------------------------------
+   CATEGORY DETECTION
+--------------------------------------- */
+
+function getCategory(item) {
+
+    const value = (
+        item.category ||
+        item.item_category ||
+        item.title ||
+        ''
+    ).toLowerCase();
+
+
+    if (
+        value.includes('phone') ||
+        value.includes('laptop') ||
+        value.includes('charger') ||
+        value.includes('tablet') ||
+        value.includes('headphone') ||
+        value.includes('earbud') ||
+        value.includes('computer')
+    ) {
+        return 'electronics';
+    }
+
+
+    if (
+        value.includes('shirt') ||
+        value.includes('jacket') ||
+        value.includes('coat') ||
+        value.includes('hoodie') ||
+        value.includes('clothing') ||
+        value.includes('shoe') ||
+        value.includes('bag')
+    ) {
+        return 'clothing';
+    }
+
+
+    if (
+        value.includes('book') ||
+        value.includes('textbook') ||
+        value.includes('novel')
+    ) {
+        return 'books';
+    }
+
+
+    return 'other';
+}
+
+
+/* ---------------------------------------
+   DAYS OVERDUE
+--------------------------------------- */
+
+function daysOverdue(dateStr) {
+
+    const due =
+        new Date(dateStr + 'T00:00:00');
+
+    const today =
+        new Date();
+
+    today.setHours(0, 0, 0, 0);
+
+    return Math.max(
+        0,
+        Math.round(
+            (today - due) / 86400000
+        )
+    );
+
+}
+
+
+/* ---------------------------------------
+   RENDER
+--------------------------------------- */
+
+function renderDonations(items) {
+
+    const container =
+        document.getElementById('donation-grid');
+
+
+    if (!items.length) {
+
+        container.innerHTML = `
+            <div class="empty-donation">
+
+                <div class="heart">♥</div>
+
+                <strong>
+                    Nothing is waiting for donation.
+                </strong>
+
+                <p class="small">
+                    Every currently unclaimed item is still inside
+                    its recovery window. That's good news!
+                </p>
+
+            </div>
+        `;
+
+        return;
+    }
+
+
+    container.innerHTML = `
+        <div class="donation-grid">
+
+            ${items.map(item => {
+
+                const category =
+                    getCategory(item);
+
+                const overdue =
+                    daysOverdue(item.donate_after);
+
+
+                const icons = {
+                    electronics: '⌁',
+                    clothing: '♧',
+                    books: '▤',
+                    other: '✦'
+                };
+
+
+                return `
+                    <article
+                        class="donation-card"
+                        data-category="${category}"
+                    >
+
+                        <div class="donation-card-top">
+
+                            <div class="donation-icon">
+                                ${icons[category]}
+                            </div>
+
+                            <span class="badge">
+                                ${escapeHtml(category)}
+                            </span>
+
+                        </div>
+
+
+                        <h3>
+                            ${escapeHtml(item.title)}
+                        </h3>
+
+
+                        <div class="donation-meta">
+
+                            <div>
+                                <strong>Found at:</strong>
+                                ${escapeHtml(item.location_name || 'Unknown')}
+                            </div>
+
+                            <div>
+                                <strong>Ticket:</strong>
+                                <span style="font-family:var(--font-mono);">
+                                    ${escapeHtml(item.ticket_code || '—')}
+                                </span>
+                            </div>
+
+                        </div>
+
+
+                        <div class="donation-footer">
+
+                            <span class="overdue">
+                                ${overdue}d overdue
+                            </span>
+
+                            <button
+                                class="btn btn-clay"
+                                onclick="donateItem(${item.id})"
+                            >
+                                ♥ Send to charity
+                            </button>
+
+                        </div>
+
+                    </article>
+                `;
+
+            }).join('')}
+
+        </div>
+    `;
+
+}
+
+
+/* ---------------------------------------
+   FILTERS
+--------------------------------------- */
+
+document.querySelectorAll('.filter-btn')
+    .forEach(button => {
+
+        button.addEventListener('click', () => {
+
+            document
+                .querySelectorAll('.filter-btn')
+                .forEach(btn =>
+                    btn.classList.remove('active')
+                );
+
+            button.classList.add('active');
+
+            const filter =
+                button.dataset.filter;
+
+
+            const today = new Date();
+
+            today.setHours(0, 0, 0, 0);
+
+
+            let queue = donationItems.filter(item =>
+                (item.status === 'open' ||
+                 item.status === 'matched') &&
+                item.donate_after &&
+                new Date(item.donate_after + 'T00:00:00') <= today
+            );
+
+
+            if (filter !== 'all') {
+
+                queue = queue.filter(item =>
+                    getCategory(item) === filter
+                );
+
+            }
+
+
+            renderDonations(queue);
+
+        });
+
+    });
+
+
+/* ---------------------------------------
+   DONATE ACTION
+--------------------------------------- */
+
+async function donateItem(itemId) {
+
+    const confirmed = confirm(
+        'Mark this item as donated to the campus charity drive?'
+    );
+
+    if (!confirmed) return;
+
+
+    try {
+
+        await api('admin_action.php', {
+
+            method: 'POST',
+
+            headers: {
+                'Content-Type': 'application/json'
+            },
+
+            body: JSON.stringify({
+                item_id: itemId,
+                action: 'mark_donated'
+            })
+
+        });
+
+
+        toast('Item sent to charity ♥');
+
+        loadDonations();
+
+    } catch (e) {
+
+        toast('Error: ' + e.message);
+
+    }
+
+}
+
+
+/* ---------------------------------------
+   INITIAL LOAD
+--------------------------------------- */
+
+loadDonations();
+
+</script>
+
+</body>
+</html>

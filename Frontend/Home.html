@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    body { visibility: hidden; }
+    html[data-authed] body { visibility: visible; }
+</style>
+<script>
+(function () {
+    fetch('me.php', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.user) {
+                location.href = 'auth.html?redirect=' + encodeURIComponent(location.pathname + location.search);
+            } else {
+                document.documentElement.setAttribute('data-authed', '1');
+            }
+        })
+        .catch(function () {
+            location.href = 'auth.html';
+        });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campus Lost &amp; Found</title>
+<meta name="description" content="Report, search, and reclaim lost property on campus — with smart matching, blurred-photo protection, and a Good Samaritan leaderboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="home.html"><span class="brand-mark">L&amp;F</span> Campus Lost &amp; Found</a>
+        <nav class="nav-links">
+            <a href="home.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="admin.html">Dashboard</a>
+            <a href="donation.html">Donations</a>
+            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign out</a>
+        </nav>
+    </div>
+</header>
+
+<section class="hero">
+    <div class="wrap hero-grid">
+        <div>
+            <span class="eyebrow">Serving the whole campus community</span>
+            <h1>Lost something? Someone probably handed it in.</h1>
+            <p class="hero-sub">A digital claim-ticket counter for your campus — report an item in under a minute, get matched automatically, and verify claims before contact details are shared.</p>
+            <div class="search-bar">
+                <input type="text" id="home-search" placeholder="Search by item, e.g. &quot;blue backpack&quot;, &quot;student card&quot;…" aria-label="Search listings">
+                <button class="btn btn-sage" id="home-search-btn">Search</button>
+            </div>
+            <div class="hero-actions">
+                <a class="btn btn-clay" href="report-lost.html">I lost something</a>
+                <a class="btn btn-sage" href="report-found.html">I found something</a>
+            </div>
+        </div>
+        <div>
+            <div class="counters" id="home-counters">
+                <div class="counter-card"><span class="counter-num">—</span><span class="counter-label">Lost reports</span></div>
+                <div class="counter-card"><span class="counter-num">—</span><span class="counter-label">Found reports</span></div>
+                <div class="counter-card"><span class="counter-num">—</span><span class="counter-label">Reunited</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="wrap">
+        <div id="urgent-banner"></div>
+
+        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <h2>Latest listings</h2>
+            <a href="browse.html">Browse everything →</a>
+        </div>
+        <div class="ticket-grid" id="latest-listings" style="margin-top:18px;">
+            <p class="muted">Loading listings…</p>
+        </div>
+    </div>
+</section>
+
+<section class="section section-tight" style="border-top:1px solid var(--line); background:var(--paper-raised);">
+    <div class="wrap">
+        <h2>How the claim-ticket system works</h2>
+        <div class="form-grid" style="margin-top:18px;">
+            <div class="field full" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px;">
+                <div class="card"><h3>1. Report</h3><p>Log a lost or found item with a photo, category, and the exact campus spot — dropped as a pin on the map.</p></div>
+                <div class="card"><h3>2. Match</h3><p>A keyword-and-location matching engine quietly ranks likely pairs the moment a new report comes in.</p></div>
+                <div class="card"><h3>3. Verify</h3><p>Claiming a found item requires answering two questions only the true owner would know — no contact details leak until verified.</p></div>
+                <div class="card"><h3>4. Reunite</h3><p>Verified claimants get the finder's contact details, and the finder earns Good Samaritan points on the leaderboard.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative. Built with HTML, CSS, JavaScript, PHP &amp; Python.</div>
+</footer>
+
+<script src="js/app.js"></script>
+<script>
+async function loadHome() {
+    try {
+        const data = await api('browse.php?sort=urgent');
+        const c = data.counters;
+        const nums = document.querySelectorAll('#home-counters .counter-num');
+        nums[0].textContent = c.lost;
+        nums[1].textContent = c.found;
+        nums[2].textContent = c.reunited;
+
+        const items = data.items.slice(0, 6);
+        const grid = document.getElementById('latest-listings');
+        grid.innerHTML = items.length
+            ? items.map(ticketCardHtml).join('')
+            : '<p class="empty-state">No reports yet — be the first to log a lost or found item.</p>';
+
+        const urgent = data.items.find(i => i.urgent && i.status === 'open');
+        if (urgent) {
+            document.getElementById('urgent-banner').innerHTML = `
+                <div class="countdown-strip">⚠️ Urgent: <strong>${escapeHtml(urgent.title)}</strong> at ${escapeHtml(urgent.location_name)} —
+                <a href="item-detail.html?id=${urgent.id}">view details</a></div>`;
+        }
+    } catch (e) {
+        document.getElementById('latest-listings').innerHTML = `<p class="empty-state">Couldn't load listings: ${escapeHtml(e.message)}</p>`;
+    }
+}
+loadHome();
+
+function goSearch() {
+    const q = document.getElementById('home-search').value.trim();
+    location.href = 'browse.html' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+}
+document.getElementById('home-search-btn').addEventListener('click', goSearch);
+document.getElementById('home-search').addEventListener('keydown', e => { if (e.key === 'Enter') goSearch(); });
+</script>
+</body>
+</html>

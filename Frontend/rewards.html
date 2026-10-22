@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    body { visibility: hidden; }
+    html[data-authed] body { visibility: visible; }
+</style>
+<script>
+(function () {
+    fetch('me.php', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.user) {
+                location.href = 'auth.html?redirect=' + encodeURIComponent(location.pathname + location.search);
+            } else {
+                document.documentElement.setAttribute('data-authed', '1');
+            }
+        })
+        .catch(function () {
+            location.href = 'auth.html';
+        });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Rewards — Campus Lost &amp; Found</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="home.html"><span class="brand-mark">L&amp;F</span> Campus Lost &amp; Found</a>
+        <nav class="nav-links">
+            <a href="home.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="rewards.html" class="active">My Rewards</a>
+            <a href="admin.html">Dashboard</a>
+            <a href="donation.html">Donations</a>
+            <a href="logout.php" id="nav-auth" class="nav-auth-link">Sign out</a>
+        </nav>
+    </div>
+</header>
+
+<section class="section">
+    <div class="wrap" style="max-width:720px;">
+        <span class="eyebrow">Good Samaritan rewards</span>
+        <h1>My Snack Credits</h1>
+        <p class="muted">Every found item you report earns snack credits. Confirmed reunions earn even more. Redeem your balance for a code, then show it at the campus snack venue to claim your snack.</p>
+
+        <div class="card" style="margin-top:20px; text-align:center;">
+            <span class="small muted" style="text-transform:uppercase; letter-spacing:0.06em;">Available balance</span>
+            <div id="balance-display" style="font-family:var(--font-mono); font-size:3rem; font-weight:600; color:var(--sage-dark); margin:8px 0;">—</div>
+            <p class="small muted">Earn 5 credits per found-item report, plus 10 more when it's confirmed reunited with its owner.</p>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <h3 class="mt-0">Redeem credits</h3>
+            <form id="redeem-form" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+                <div class="field" style="margin-bottom:0; flex:1; min-width:140px;">
+                    <label for="redeem-amount">Credits to redeem</label>
+                    <input type="number" id="redeem-amount" min="5" step="1" required>
+                    <span class="hint">Minimum 5 at a time.</span>
+                </div>
+                <button class="btn btn-sage" type="submit" style="margin-bottom:16px;">Redeem</button>
+            </form>
+            <div id="redeem-error" class="small" style="color:var(--danger); display:none; margin-top:10px;"></div>
+            <div id="redeem-result" style="display:none; margin-top:16px;"></div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <h3 class="mt-0">Redemption history</h3>
+            <div id="history-list"><p class="muted small">Loading…</p></div>
+        </div>
+    </div>
+</section>
+
+<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
+
+<script src="js/app.js?v=3"></script>
+<script>
+function statusPillClass(status) {
+    if (status === 'fulfilled') return 'status-reunited';
+    if (status === 'cancelled') return 'status-donated';
+    return 'status-open';
+}
+
+async function loadRewards() {
+    try {
+        const data = await api('redeem.php');
+        document.getElementById('balance-display').textContent = data.balance;
+
+        const list = document.getElementById('history-list');
+        list.innerHTML = data.redemptions.length ? `
+            <table style="width:100%; border-collapse:collapse; margin-top:6px;">
+                <thead><tr style="text-align:left; font-size:0.78rem; text-transform:uppercase; color:var(--ink-soft);">
+                    <th style="padding:6px 0;">Code</th><th>Credits</th><th>Status</th><th>Date</th>
+                </tr></thead>
+                <tbody>${data.redemptions.map(r => `
+                    <tr style="border-top:1px solid var(--line);">
+                        <td style="padding:8px 0; font-family:var(--font-mono); font-size:0.85rem;">${escapeHtml(r.code)}</td>
+                        <td>${r.credits}</td>
+                        <td><span class="status-pill ${statusPillClass(r.status)}">${escapeHtml(r.status)}</span></td>
+                        <td class="small muted">${escapeHtml(r.created_at)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>` : '<p class="muted small">No redemptions yet — earn some credits first!</p>';
+    } catch (e) {
+        document.getElementById('balance-display').textContent = '—';
+        document.getElementById('history-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`;
+    }
+}
+
+document.getElementById('redeem-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('redeem-error');
+    const resultEl = document.getElementById('redeem-result');
+    errEl.style.display = 'none';
+    resultEl.style.display = 'none';
+
+    const amount = parseInt(document.getElementById('redeem-amount').value, 10);
+
+    try {
+        const res = await api('redeem.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credits: amount })
+        });
+
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = `
+            <p class="small" style="color:var(--sage-dark); font-weight:600;">✅ ${escapeHtml(res.message)}</p>
+            <p style="font-family:var(--font-mono); font-size:1.3rem; margin-top:6px;">${escapeHtml(res.code)}</p>
+        `;
+        document.getElementById('redeem-form').reset();
+        loadRewards();
+        toast('Redemption code generated');
+    } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+    }
+});
+
+loadRewards();
+</script>
+</body>
+</html>

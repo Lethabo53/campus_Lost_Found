@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    body { visibility: hidden; }
+    html[data-authed] body { visibility: visible; }
+</style>
+<script>
+(function () {
+    fetch('me.php', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.user) {
+                location.href = 'auth.html?redirect=' + encodeURIComponent(location.pathname + location.search);
+            } else {
+                document.documentElement.setAttribute('data-authed', '1');
+            }
+        })
+        .catch(function () {
+            location.href = 'auth.html';
+        });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Found Item — Campus Lost &amp; Found</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+:root {
+    --bg: #eeece4;
+    --surface: #fbfaf5;
+    --surface-soft: #f4f3eb;
+
+    --ink: #182d34;
+    --ink-soft: #627078;
+
+    --sage: #6f8063;
+    --sage-dark: #4d624f;
+    --sage-light: #dfe9df;
+
+    --clay: #ad5d3d;
+    --clay-dark: #934a30;
+
+    --cream: #fffdf7;
+    --line: #d0cec2;
+    --line-dark: #bcb9aa;
+
+    --shadow:
+        0 14px 35px rgba(35, 45, 39, .07);
+
+    --shadow-small:
+        0 5px 15px rgba(35, 45, 39, .06);
+
+    --serif:
+        "Fraunces",
+        Georgia,
+        serif;
+
+    --sans:
+        "IBM Plex Sans",
+        Arial,
+        sans-serif;
+
+    --mono:
+        "IBM Plex Mono",
+        monospace;
+}
+
+body {
+    background:
+        radial-gradient(
+            circle at 10% 10%,
+            rgba(111,128,99,.08),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 90% 45%,
+            rgba(173,93,61,.045),
+            transparent 25%
+        ),
+        var(--bg);
+
+    color: var(--ink);
+
+    font-family: var(--sans);
+}
+
+
+/* subtle paper texture */
+
+body::before {
+    content: "";
+
+    position: fixed;
+
+    inset: 0;
+
+    pointer-events: none;
+
+    opacity: .22;
+
+    background-image:
+        radial-gradient(
+            rgba(30,40,35,.055) .7px,
+            transparent .7px
+        );
+
+    background-size: 7px 7px;
+
+    z-index: -1;
+}
+
+
+.topbar {
+    background:
+        rgba(250,249,244,.94);
+
+    backdrop-filter:
+        blur(10px);
+
+    border-bottom:
+        1px solid rgba(180,177,164,.7);
+
+    position: sticky;
+
+    top: 0;
+
+    z-index: 1000;
+}
+
+
+.topbar-inner {
+    min-height: 62px;
+}
+
+
+.brand {
+    letter-spacing: -.01em;
+
+    transition:
+        transform .2s ease;
+}
+
+
+.brand:hover {
+    transform:
+        translateY(-1px);
+}
+
+
+.brand-mark {
+    width: 32px;
+    height: 32px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #718365,
+            #53674f
+        );
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.25),
+        0 3px 8px rgba(60,80,60,.15);
+}
+
+
+.nav-links a {
+    transition:
+        color .2s ease;
+}
+
+
+.nav-links a:hover {
+    color: var(--sage-dark);
+}
+
+
+.nav-links a.active {
+    font-weight: 600;
+}
+
+
+.section {
+    padding:
+        68px 0 85px;
+}
+
+
+.section > .wrap {
+    position: relative;
+}
+
+
+.eyebrow {
+    color: var(--sage-dark);
+
+    letter-spacing: .17em;
+
+    font-size: 10px;
+
+    font-weight: 500;
+}
+
+
+.section h1 {
+    position: relative;
+
+    max-width: 700px;
+
+    margin:
+        12px 0 15px;
+
+    font-family: var(--serif);
+
+    font-size:
+        clamp(42px, 6vw, 62px);
+
+    line-height: 1;
+
+    letter-spacing:
+        -.035em;
+
+    color: var(--ink);
+}
+
+
+.section h1::after {
+    content: "";
+
+    display: block;
+
+    width: 54px;
+    height: 4px;
+
+    margin-top: 20px;
+
+    border-radius: 5px;
+
+    background:
+        var(--clay);
+}
+
+
+.section > .wrap > p {
+    max-width: 690px;
+
+    color: var(--ink-soft);
+
+    font-size: 15px;
+
+    line-height: 1.7;
+}
+
+
+.section > .wrap > p strong {
+    color: var(--ink);
+
+    font-weight: 600;
+}
+#found-form {
+    position: relative;
+
+    margin-top: 30px !important;
+
+    padding:
+        34px;
+
+    background:
+        rgba(251,250,245,.94);
+
+    border:
+        1px solid rgba(194,191,178,.85);
+
+    border-radius: 18px;
+
+    box-shadow:
+        0 20px 55px rgba(39,48,42,.08);
+
+    overflow: hidden;
+}
+
+
+/* decorative corner */
+
+#found-form::before {
+    content: "";
+
+    position: absolute;
+
+    width: 180px;
+    height: 180px;
+
+    right: -80px;
+    top: -90px;
+
+    border-radius: 50%;
+
+    background:
+        rgba(111,128,99,.08);
+
+    pointer-events: none;
+}
+
+
+#found-form::after {
+    content: "FOUND";
+
+    position: absolute;
+
+    right: 26px;
+    top: 23px;
+
+    font-family: var(--mono);
+
+    font-size: 9px;
+
+    letter-spacing: .2em;
+
+    color: rgba(77,98,79,.45);
+}
+
+
+.form-grid {
+    position: relative;
+
+    display: grid;
+
+    gap: 21px 18px;
+}
+
+
+.field {
+    position: relative;
+}
+
+
+.field label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: var(--ink);
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    letter-spacing: .01em;
+}
+
+
+.hint {
+    color: #89918f;
+
+    font-weight: 400;
+
+    font-size: 11px;
+}
+
+
+.field input,
+.field select,
+.field textarea {
+    width: 100%;
+
+    border:
+        1px solid var(--line);
+
+    border-radius: 9px;
+
+    background:
+        rgba(255,253,247,.8);
+
+    color: var(--ink);
+
+    font-family: var(--sans);
+
+    font-size: 14px;
+
+    outline: none;
+
+    transition:
+        border-color .2s ease,
+        box-shadow .2s ease,
+        background .2s ease,
+        transform .2s ease;
+}
+
+
+.field input,
+.field select {
+    min-height: 46px;
+
+    padding:
+        11px 13px;
+}
+
+
+.field textarea {
+    min-height: 125px;
+
+    padding:
+        12px 13px;
+
+    resize:
+        vertical;
+
+    line-height: 1.55;
+}
+
+
+.field input::placeholder,
+.field textarea::placeholder {
+    color: #9ba09a;
+}
+
+
+.field input:hover,
+.field select:hover,
+.field textarea:hover {
+    border-color:
+        #aaa99c;
+
+    background:
+        #fffef9;
+}
+
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+    border-color:
+        var(--sage);
+
+    background:
+        #fffef9;
+
+    box-shadow:
+        0 0 0 3px rgba(111,128,99,.12);
+
+    transform:
+        translateY(-1px);
+}
+
+.field select {
+    cursor: pointer;
+
+    appearance: none;
+
+    background-image:
+        linear-gradient(45deg, transparent 50%, #65736a 50%),
+        linear-gradient(135deg, #65736a 50%, transparent 50%);
+
+    background-position:
+        calc(100% - 17px) 20px,
+        calc(100% - 12px) 20px;
+
+    background-size:
+        5px 5px,
+        5px 5px;
+
+    background-repeat: no-repeat;
+}
+
+
+.field input[type="date"] {
+    color-scheme: light;
+}
+.field input[type="file"] {
+    padding: 9px;
+
+    cursor: pointer;
+
+    background:
+        #f4f4ed;
+
+    border-style:
+        dashed;
+
+    border-color:
+        #b7b9ab;
+}
+
+
+.field input[type="file"]::file-selector-button {
+    border: 0;
+
+    padding:
+        8px 13px;
+
+    margin-right: 10px;
+
+    border-radius: 7px;
+
+    background:
+        var(--sage-light);
+
+    color:
+        var(--sage-dark);
+
+    font-family:
+        var(--sans);
+
+    font-size:
+        12px;
+
+    font-weight:
+        600;
+
+    cursor: pointer;
+
+    transition:
+        background .2s ease;
+}
+
+
+.field input[type="file"]::file-selector-button:hover {
+    background:
+        #d1e1d3;
+}
+
+#campus-map {
+    height: 300px !important;
+
+    border:
+        1px solid var(--line);
+
+    border-radius:
+        12px;
+
+    overflow: hidden;
+
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.35),
+        var(--shadow-small);
+
+    background:
+        #e5e7df;
+}
+
+
+/* Leaflet controls */
+
+.leaflet-control-zoom {
+    border:
+        1px solid var(--line) !important;
+
+    box-shadow:
+        0 3px 10px rgba(30,40,30,.1) !important;
+}
+
+
+.leaflet-control-zoom a {
+    color: var(--ink) !important;
+
+    background:
+        rgba(255,253,247,.94) !important;
+}
+
+
+.divider {
+    border: 0;
+
+    border-top:
+        1px solid var(--line);
+
+    margin:
+        8px 0 3px;
+}
+
+
+.field.full h3 {
+    margin-bottom: 5px;
+
+    font-family: var(--serif);
+
+    font-size: 21px;
+
+    color: var(--ink);
+}
+
+
+.field.full h3::before {
+    content: "02";
+
+    display: inline-block;
+
+    margin-right: 9px;
+
+    color: var(--clay);
+
+    font-family: var(--mono);
+
+    font-size: 10px;
+
+    font-weight: 500;
+
+    vertical-align: middle;
+}
+
+
+/* first part of form gets a small section marker */
+
+#title {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(111,128,99,.04),
+            transparent
+        ),
+        #fffef9;
+}
+
+
+.btn {
+    transition:
+        transform .2s ease,
+        box-shadow .2s ease,
+        background .2s ease;
+}
+
+
+.btn-sage {
+    position: relative;
+
+    margin-top: 8px;
+
+    min-height: 50px;
+
+    border: 0;
+
+    border-radius: 9px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #718365,
+            #566c55
+        );
+
+    color: white;
+
+    font-family: var(--sans);
+
+    font-size: 14px;
+
+    font-weight: 600;
+
+    letter-spacing: .01em;
+
+    box-shadow:
+        0 8px 18px rgba(80,105,82,.18);
+}
+
+
+.btn-sage:hover {
+    transform:
+        translateY(-2px);
+
+    background:
+        linear-gradient(
+            135deg,
+            #64795c,
+            #4d624d
+        );
+
+    box-shadow:
+        0 12px 23px rgba(80,105,82,.22);
+}
+
+
+.btn-sage:active {
+    transform:
+        translateY(0);
+}
+
+
+.btn-sage:disabled {
+    opacity: .6;
+
+    cursor:
+        wait;
+
+    transform:
+        none;
+}
+
+
+#result-panel .card {
+    padding:
+        30px;
+
+    border-radius:
+        15px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #f4f8f2,
+            #fbfaf5
+        );
+
+    border:
+        1px solid #cbdccc;
+
+    box-shadow:
+        var(--shadow);
+}
+
+
+#result-panel h3 {
+    margin-top: 0;
+
+    font-family: var(--serif);
+
+    font-size: 22px;
+
+    color: var(--ink);
+}
+
+
+#result-panel p {
+    color:
+        var(--ink-soft);
+
+    line-height:
+        1.65;
+}
+
+
+#qr-holder {
+    margin-top: 8px;
+
+    border:
+        1px solid var(--line) !important;
+
+    box-shadow:
+        0 7px 18px rgba(35,45,39,.08);
+}
+
+
+#result-panel .btn-outline {
+    margin-top: 10px;
+
+    background:
+        #fffef9;
+
+    border-color:
+        var(--line);
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+footer {
+    padding:
+        28px 0;
+
+    background:
+        #e9e8df;
+
+    border-top:
+        1px solid #d1cec1;
+
+    color:
+        #68736f;
+
+    font-family:
+        var(--mono);
+
+    font-size:
+        10px;
+
+    letter-spacing:
+        .04em;
+}
+
+
+/* =========================================================
+   DESKTOP FORM LAYOUT
+========================================================= */
+
+@media (min-width: 701px) {
+
+    #found-form .form-grid {
+        grid-template-columns:
+            1fr 1fr;
+    }
+
+    #found-form .field.full {
+        grid-column:
+            1 / -1;
+    }
+
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 850px) {
+
+    .section {
+        padding-top:
+            50px;
+    }
+
+    .section h1 {
+        font-size:
+            48px;
+    }
+
+    #found-form {
+        padding:
+            26px;
+    }
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+    .section {
+        padding:
+            40px 0 55px;
+    }
+
+
+    .section h1 {
+        font-size:
+            40px;
+
+        line-height:
+            1.05;
+    }
+
+
+    .section > .wrap > p {
+        font-size:
+            14px;
+    }
+
+
+    #found-form {
+        padding:
+            22px 18px;
+
+        border-radius:
+            14px;
+    }
+
+
+    #found-form::after {
+        display:
+            none;
+    }
+
+
+    #campus-map {
+        height:
+            260px !important;
+    }
+
+
+    .field input,
+    .field select {
+        min-height:
+            48px;
+    }
+
+
+    .field textarea {
+        min-height:
+            120px;
+    }
+
+
+    .btn-sage {
+        min-height:
+            52px;
+    }
+
+}
+
+
+/* =========================================================
+   SMALL PHONES
+========================================================= */
+
+@media (max-width: 420px) {
+
+    .section h1 {
+        font-size:
+            35px;
+    }
+
+
+    .eyebrow {
+        font-size:
+            9px;
+    }
+
+
+    #found-form {
+        padding:
+            18px 14px;
+    }
+
+
+    #campus-map {
+        height:
+            230px !important;
+    }
+
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+
+        transition:
+            none !important;
+    }
+
+}
+
+</style>
+
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="home.html"><span class="brand-mark">L&amp;F</span> Campus Lost &amp; Found</a>
+        <nav class="nav-links">
+            <a href="home.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="admin.html">Dashboard</a>
+            <a href="donation.html">Donations</a>
+            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign out</a>
+        </nav>
+    </div>
+</header>
+
+<section class="section">
+    <div class="wrap" style="max-width:760px;">
+        <span class="eyebrow">Found item report — thank you 🙏</span>
+        <h1>Log what you found</h1>
+        <p>Your photo is <strong>blurred automatically</strong> until a claimant answers your two security questions correctly — this keeps opportunistic false claims out. You'll also earn Good Samaritan points.</p>
+
+        <form id="found-form" class="card" style="margin-top:20px;" enctype="multipart/form-data">
+            <div class="form-grid">
+                <div class="field full">
+                    <label for="title">Item title</label>
+                    <input type="text" id="title" placeholder="e.g. Backpack found near library" required>
+                </div>
+                <div class="field">
+                    <label for="category">Category</label>
+                    <select id="category" required>
+                        <option value="">Select…</option>
+                        <option>ID/Card</option><option>Electronics</option><option>Bag</option>
+                        <option>Clothing</option><option>Keys</option><option>Sports Gear</option>
+                        <option>Books</option><option>Other</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="color">Colour</label>
+                    <input type="text" id="color" placeholder="e.g. Navy blue">
+                </div>
+                <div class="field full">
+                    <label for="description">Description</label>
+                    <textarea id="description" placeholder="What you found and any distinguishing marks — avoid naming the owner." required></textarea>
+                </div>
+                <div class="field">
+                    <label for="brand_model">Brand / model <span class="hint">(optional)</span></label>
+                    <input type="text" id="brand_model" placeholder="e.g. Nike, iPhone 14">
+                </div>
+                <div class="field">
+                    <label for="condition_notes">Condition <span class="hint">(optional)</span></label>
+                    <input type="text" id="condition_notes" placeholder="e.g. Good condition, slightly scuffed">
+                </div>
+                <div class="field">
+                    <label for="event_date">Date found</label>
+                    <input type="date" id="event_date" required>
+                    <span class="hint">Only today's date can be selected.</span>
+                </div>
+                <div class="field full">
+                    <label for="location_name">Location found</label>
+                    <input type="text" id="location_name" placeholder="e.g. Student Union Cafeteria" required>
+                </div>
+                <div class="field full">
+                    <label>Pin the spot on the campus map <span class="hint">(optional)</span></label>
+                    <div id="campus-map"></div>
+                </div>
+                <div class="field full">
+                    <label for="photo">Photo <span class="hint">(will be blurred until claim is verified)</span></label>
+                    <input type="file" id="photo" accept="image/png, image/jpeg, image/webp">
+                </div>
+
+                <div class="field full"><hr class="divider" style="width:100%;"></div>
+                <div class="field full">
+                    <h3 class="mt-0">Two-step claim verification</h3>
+                    <p class="small">Ask something only the true owner would know. Avoid yes/no questions.</p>
+                </div>
+                <div class="field">
+                    <label for="q1">Security question 1</label>
+                    <input type="text" id="q1" placeholder="e.g. What brand is it?" required>
+                </div>
+                <div class="field">
+                    <label for="a1">Expected answer 1</label>
+                    <input type="text" id="a1" required>
+                </div>
+                <div class="field">
+                    <label for="q2">Security question 2</label>
+                    <input type="text" id="q2" placeholder="e.g. Where was it last used?" required>
+                </div>
+                <div class="field">
+                    <label for="a2">Expected answer 2</label>
+                    <input type="text" id="a2" required>
+                </div>
+
+                <div class="field full"><hr class="divider" style="width:100%;"></div>
+                <div class="field">
+                    <label for="reporter_name">Your name</label>
+                    <input type="text" id="reporter_name" required>
+                </div>
+                <div class="field">
+                    <label for="reporter_email">Your email</label>
+                    <input type="email" id="reporter_email" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-sage btn-block">Submit found report</button>
+        </form>
+
+        <div id="result-panel" style="margin-top:20px;"></div>
+    </div>
+</section>
+
+<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/app.js"></script>
+<script src="js/map.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    initPickerMap('campus-map');
+
+    // Restrict the date field to today only — no past or future dates
+    const todayStr = new Date().toISOString().split('T')[0];
+    const dateField = document.getElementById('event_date');
+    dateField.min = todayStr;
+    dateField.max = todayStr;
+    dateField.value = todayStr;
+});
+
+document.getElementById('found-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (event_date.value !== todayStr) {
+        toast('Only the present date is valid — please select today\'s date.');
+        return;
+    }
+
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    try {
+        const fd = new FormData();
+        fd.append('title', title.value);
+        fd.append('category', category.value);
+        fd.append('color', color.value);
+        fd.append('description', description.value);
+        fd.append('brand_model', brand_model.value);
+        fd.append('condition_notes', condition_notes.value);
+        fd.append('event_date', event_date.value);
+        fd.append('location_name', location_name.value);
+        fd.append('security_question_1', q1.value);
+        fd.append('security_answer_1', a1.value);
+        fd.append('security_question_2', q2.value);
+        fd.append('security_answer_2', a2.value);
+        fd.append('reporter_name', reporter_name.value);
+        fd.append('reporter_email', reporter_email.value);
+        if (window.pickedLatLng) { fd.append('latitude', window.pickedLatLng.lat); fd.append('longitude', window.pickedLatLng.lon); }
+        const photoFile = document.getElementById('photo').files[0];
+        if (photoFile) fd.append('photo', photoFile);
+
+        const res = await api('report-found.php', { method: 'POST', body: fd });
+
+        document.getElementById('result-panel').innerHTML = `
+            <div class="card" style="border-color:var(--sage);">
+                <h3>✅ Thank you — ticket ${escapeHtml(res.ticket_code)}</h3>
+                <p>The item will auto-flag for donation on <strong>${escapeHtml(res.donate_after)}</strong> if unclaimed. Here's a printable claim-ticket QR for the campus lost-property counter — scanning it opens this item's page directly (the scanner will need to be signed in to view it):</p>
+                <div id="qr-holder" style="background:#fff; display:inline-block; padding:12px; border-radius:8px;"></div>
+                <p class="small muted" style="margin-top:10px;">+10 Good Samaritan points added to your name on the <a href="browse.html">leaderboard</a>.</p>
+                <a class="btn btn-outline" href="item-detail.html?id=${res.item_id}" style="margin-top:6px;">View item page</a>
+            </div>`;
+        const itemPageUrl = new URL('item-detail.html?id=' + encodeURIComponent(res.item_id), location.href).href;
+        new QRCode(document.getElementById('qr-holder'), { text: itemPageUrl, width: 128, height: 128 });
+        e.target.reset();
+        toast('Found report submitted — thank you!');
+    } catch (err) {
+        toast('Error: ' + err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Submit found report';
+    }
+});
+</script>
+</body>
+</html>

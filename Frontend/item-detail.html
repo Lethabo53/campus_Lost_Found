@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    body { visibility: hidden; }
+    html[data-authed] body { visibility: visible; }
+</style>
+<script>
+(function () {
+    fetch('me.php', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.user) {
+                location.href = 'auth.html?redirect=' + encodeURIComponent(location.pathname + location.search);
+            } else {
+                document.documentElement.setAttribute('data-authed', '1');
+            }
+        })
+        .catch(function () {
+            location.href = 'auth.html';
+        });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Item details — Campus Lost &amp; Found</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="home.html"><span class="brand-mark">L&amp;F</span> Campus Lost &amp; Found</a>
+        <nav class="nav-links">
+            <a href="home.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="admin.html">Dashboard</a>
+            <a href="donation.html">Donations</a>
+            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign in</a>
+        </nav>
+    </div>
+</header>
+
+<section class="section">
+    <div class="wrap" style="max-width:760px;">
+        <div id="item-root"><p class="muted">Loading item…</p></div>
+    </div>
+</section>
+
+<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
+
+<script src="js/app.js"></script>
+<script>
+const itemId = new URLSearchParams(location.search).get('id');
+
+function statusLabel(status) {
+    const labels = {
+        open: 'Open', matched: 'Matched', claimed: 'Claimed',
+        reunited: 'Reunited', donated: 'Donated', closed: 'Closed'
+    };
+    return labels[status] || status;
+}
+
+function matchRowHtml(m) {
+    return `
+        <a class="ticket" href="item-detail.html?id=${m.found_item_id}" style="margin-bottom:10px;">
+            <div class="ticket-stub"></div>
+            <div class="ticket-body">
+                <div class="ticket-top">
+                    <span class="ticket-code">${escapeHtml(m.ticket_code)}</span>
+                    <span class="status-pill" style="background:var(--success-bg); color:var(--sage-dark);">${m.score}% match</span>
+                </div>
+                <h3 class="ticket-title">${escapeHtml(m.title)}</h3>
+                <div class="ticket-meta">
+                    <span>📍 ${escapeHtml(m.location_name)}</span>
+                    <span>${escapeHtml(m.category)}</span>
+                </div>
+            </div>
+        </a>
+    `;
+}
+
+function claimFormHtml() {
+    return `
+        <div class="card" style="margin-top:20px;" id="claim-card">
+            <h3 class="mt-0">Is this yours?</h3>
+            <p class="small">Answer both questions the finder set. If they match, you'll get the finder's contact details right here — no guessing games, no false claims.</p>
+            <form id="claim-form">
+                <div class="field">
+                    <label id="claim-q1-label" for="claim-answer-1">Question 1</label>
+                    <input type="text" id="claim-answer-1" required>
+                </div>
+                <div class="field">
+                    <label id="claim-q2-label" for="claim-answer-2">Question 2</label>
+                    <input type="text" id="claim-answer-2" required>
+                </div>
+                <div id="claim-error" class="small" style="color:var(--danger); display:none; margin-bottom:12px;"></div>
+                <button class="btn btn-sage" type="submit">Verify &amp; claim</button>
+            </form>
+            <div id="claim-success" style="display:none; margin-top:14px;"></div>
+        </div>
+    `;
+}
+
+async function load() {
+    const root = document.getElementById('item-root');
+
+    if (!itemId) {
+        root.innerHTML = '<p class="empty-state">No item specified.</p>';
+        return;
+    }
+
+    try {
+        const { item, matches } = await api('item_detail.php?id=' + encodeURIComponent(itemId));
+
+        const isLost = item.report_type === 'lost';
+        const isFound = item.report_type === 'found';
+        const canClaim = isFound && (item.status === 'open' || item.status === 'matched');
+
+        const photoClearClass = isLost ? 'is-clear' : '';
+        const photoHtml = item.photo
+            ? `<img src="${escapeHtml(item.photo)}" alt="${escapeHtml(item.title)}" class="ticket-photo ${photoClearClass}" id="item-photo" style="height:260px; margin-top:16px;">`
+            : '';
+
+        root.innerHTML = `
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                    <div>
+                        <span class="ticket-code">${escapeHtml(item.ticket_code)}</span>
+                        <h1 style="margin-top:6px;">${escapeHtml(item.title)}</h1>
+                    </div>
+                    <span class="ticket-tag ${isLost ? 'tag-lost' : 'tag-found'}">${isLost ? '🔍 Lost' : '✅ Found'}</span>
+                </div>
+                <div class="ticket-meta" style="margin:10px 0 4px;">
+                    <span>📍 ${escapeHtml(item.location_name)}</span>
+                    <span>📅 ${escapeHtml(item.event_date)}</span>
+                    <span>${escapeHtml(item.category)}</span>
+                    ${item.color ? `<span>Color: ${escapeHtml(item.color)}</span>` : ''}
+                    ${item.brand_model ? `<span>${escapeHtml(item.brand_model)}</span>` : ''}
+                    <span class="status-pill status-${escapeHtml(item.status)}">${statusLabel(item.status)}</span>
+                    ${item.urgent ? '<span class="ticket-tag tag-urgent">Urgent</span>' : ''}
+                </div>
+                <p style="margin-top:14px;">${escapeHtml(item.description)}</p>
+                ${item.condition_notes ? `<p class="small muted">Condition notes: ${escapeHtml(item.condition_notes)}</p>` : ''}
+                ${photoHtml}
+            </div>
+
+            ${canClaim ? claimFormHtml() : ''}
+
+            ${isLost && matches && matches.length ? `
+                <div class="card" style="margin-top:20px;">
+                    <h3 class="mt-0">Possible matches</h3>
+                    ${matches.map(matchRowHtml).join('')}
+                </div>
+            ` : ''}
+        `;
+
+        if (canClaim) {
+            document.getElementById('claim-q1-label').textContent = item.security_question_1 || 'Question 1';
+            document.getElementById('claim-q2-label').textContent = item.security_question_2 || 'Question 2';
+
+            document.getElementById('claim-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const errEl = document.getElementById('claim-error');
+                errEl.style.display = 'none';
+
+                try {
+                    const res = await api('verify_claim.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            item_id: item.id,
+                            answer_1: document.getElementById('claim-answer-1').value,
+                            answer_2: document.getElementById('claim-answer-2').value
+                        })
+                    });
+
+                    document.getElementById('claim-form').style.display = 'none';
+                    const successEl = document.getElementById('claim-success');
+                    successEl.style.display = 'block';
+                    successEl.innerHTML = `
+                        <p class="small" style="color:var(--sage-dark); font-weight:600;">✅ Verified! Here's how to reach the finder:</p>
+                        <p><strong>${escapeHtml(res.contact.name)}</strong><br>${escapeHtml(res.contact.email)}</p>
+                    `;
+                    const photo = document.getElementById('item-photo');
+                    if (photo) photo.classList.add('is-clear');
+                    toast('Claim verified!');
+                } catch (err) {
+                    errEl.textContent = err.message;
+                    errEl.style.display = 'block';
+                }
+            });
+        }
+
+    } catch (e) {
+        root.innerHTML = `<p class="empty-state">Couldn't load this item: ${escapeHtml(e.message)}</p>`;
+    }
+}
+
+load();
+</script>
+</body>
+</html>

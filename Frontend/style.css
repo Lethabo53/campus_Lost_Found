@@ -1,0 +1,514 @@
+/* =========================================================================
+   Campus Lost & Found — Design System
+   Direction: "claim ticket / coat-check stub" — the visual language of a
+   physical lost-property counter, translated to the screen. Perforated
+   edges, tracking codes in monospace, and a calm, paper-and-ink palette
+   instead of the usual cream+terracotta AI defaults.
+   ========================================================================= */
+
+:root {
+    /* --- Palette (neutral, paper-and-ink) --- */
+    --paper:        #EDEBE3;   /* page background — warm stone, not cream */
+    --paper-raised: #F6F5EF;   /* card surface, slightly lighter than page */
+    --ink:          #2A2B24;   /* primary text — warm near-black */
+    --ink-soft:     #5B5C50;   /* secondary text */
+    --line:         #C9C6B8;   /* hairlines, dividers, perforations */
+
+    --sage:         #6E7F5C;   /* primary action / "found" accent */
+    --sage-dark:    #566349;
+    --clay:         #A15A3E;   /* "lost" accent — muted rust, not terracotta */
+    --clay-dark:    #7E4630;
+    --gold:         #B98A2E;   /* leaderboard / badges */
+    --gold-dark:    #8F6B21;
+
+    --danger:       #A13B3B;
+    --success-bg:   #E4E9DC;
+    --danger-bg:    #EFDCD8;
+
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(42,43,36,0.06), 0 4px 14px rgba(42,43,36,0.05);
+    --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    cursor: default;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+
+/* Real readable content — allow normal selection and the text cursor here */
+p, h1, h2, h3, li, td, th, .ticket-meta, .ticket-title, label {
+    cursor: text;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Form fields always need normal text interaction regardless of the above */
+input, textarea, select {
+    cursor: auto;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+img { max-width: 100%; display: block; }
+
+a { color: var(--sage-dark); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.15;
+    margin: 0 0 0.4em;
+    letter-spacing: -0.01em;
+}
+
+h1 { font-size: clamp(2rem, 4vw, 2.8rem); }
+h2 { font-size: clamp(1.4rem, 2.6vw, 1.9rem); }
+h3 { font-size: 1.15rem; }
+
+p { margin: 0 0 1em; color: var(--ink-soft); }
+
+.eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: inline-block;
+    margin-bottom: 0.6em;
+}
+
+/* --- Layout --- */
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.section { padding: 56px 0; }
+.section-tight { padding: 32px 0; }
+
+/* --- Top navigation --- */
+.topbar {
+    background: var(--paper-raised);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+}
+.topbar-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: var(--ink);
+}
+.brand-mark {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--sage);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+.nav-links { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.nav-links a {
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    font-weight: 500;
+}
+.nav-links a.active { color: var(--ink); border-bottom: 2px solid var(--sage); padding-bottom: 3px; }
+.nav-auth-link {
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    color: var(--ink) !important;
+    text-decoration: none !important;
+}
+.nav-auth-link:hover { border-color: var(--sage); background: var(--paper); }
+#nav-greeting { margin-left: -6px; }
+
+/* --- Buttons --- */
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 11px 20px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-sage { background: var(--sage); color: #fff; }
+.btn-sage:hover { background: var(--sage-dark); text-decoration: none; }
+.btn-clay { background: var(--clay); color: #fff; }
+.btn-clay:hover { background: var(--clay-dark); text-decoration: none; }
+.btn-outline { background: transparent; border-color: var(--line); color: var(--ink); }
+.btn-outline:hover { border-color: var(--ink-soft); text-decoration: none; }
+.btn-block { width: 100%; }
+.btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* --- Hero --- */
+.hero {
+    padding: 64px 0 40px;
+    border-bottom: 1px solid var(--line);
+    background:
+        radial-gradient(circle at 88% 8%, rgba(110,127,92,0.10), transparent 45%),
+        radial-gradient(circle at 6% 92%, rgba(161,90,62,0.08), transparent 40%);
+}
+.hero-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 48px; align-items: center; }
+@media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; } }
+
+.hero h1 { max-width: 15ch; }
+.hero-sub { font-size: 1.05rem; max-width: 46ch; }
+.hero-actions { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+
+.search-bar {
+    display: flex; gap: 8px; margin-top: 28px; max-width: 560px;
+}
+.search-bar input {
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper-raised);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: var(--ink);
+}
+.search-bar input:focus { outline: 2px solid var(--sage); outline-offset: 1px; }
+
+/* --- Live counters --- */
+.counters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 8px; }
+.counter-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+}
+.counter-num {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--ink);
+    display: block;
+}
+.counter-label {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* =========================================================================
+   Signature element: the Claim Ticket card
+   Perforated left edge (like a tear-off coat-check stub), a rotated punch
+   hole, and a monospace tracking code — used for every item listing.
+   ========================================================================= */
+.ticket-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.ticket {
+    position: relative;
+    display: flex;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ticket:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(42,43,36,0.10); text-decoration: none; }
+
+.ticket-stub {
+    width: 34px;
+    flex-shrink: 0;
+    background: var(--sage);
+    position: relative;
+    background-image: radial-gradient(circle at 50% 12px, var(--paper) 5px, transparent 5.5px),
+                       radial-gradient(circle at 50% 42px, var(--paper) 5px, transparent 5.5px);
+}
+.ticket.is-lost .ticket-stub { background: var(--clay); }
+.ticket-stub::after {
+    content: "";
+    position: absolute;
+    top: 0; right: -1px; bottom: 0;
+    border-right: 2px dashed rgba(255,255,255,0.55);
+}
+
+.ticket-body { padding: 16px 16px 14px; flex: 1; min-width: 0; }
+.ticket-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.ticket-code {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.03em;
+}
+.ticket-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+.tag-found { background: var(--success-bg); color: var(--sage-dark); }
+.tag-lost { background: var(--danger-bg); color: var(--clay-dark); }
+.tag-urgent { background: #F0DFC0; color: var(--gold-dark); margin-left: 6px; }
+
+.ticket-title { font-family: var(--font-display); font-size: 1.08rem; font-weight: 600; margin: 8px 0 4px; }
+.ticket-meta { font-size: 0.84rem; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.ticket-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+.ticket-photo {
+    width: 100%; height: 130px; object-fit: cover;
+    border-radius: 6px; margin-top: 10px;
+    filter: blur(14px) saturate(0.8);
+}
+.ticket-photo.is-clear { filter: none; }
+
+/* The whole ticket card is a clickable link — keep the pointer cursor everywhere inside it */
+.ticket, .ticket * { cursor: pointer; }
+
+/* --- Status pills used across pages --- */
+.status-pill {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: var(--line);
+    color: var(--ink);
+}
+.status-open { background: var(--success-bg); color: var(--sage-dark); }
+.status-matched { background: #F0DFC0; color: var(--gold-dark); }
+.status-claimed, .status-reunited { background: var(--sage); color: #fff; }
+.status-donated { background: var(--ink-soft); color: #fff; }
+
+/* --- Cards / forms --- */
+.card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 26px;
+    box-shadow: var(--shadow);
+}
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 680px) { .form-grid { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+.field .hint { font-size: 0.78rem; color: var(--ink-soft); font-weight: 400; }
+.field input, .field select, .field textarea {
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper);
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    color: var(--ink);
+}
+.field input:focus, .field select:focus, .field textarea:focus,
+.field input:focus-visible, button:focus-visible, a:focus-visible {
+    outline: 2px solid var(--sage);
+    outline-offset: 1px;
+}
+.field textarea { resize: vertical; min-height: 90px; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; }
+.checkbox-row input { width: auto; }
+
+/* --- Filters bar --- */
+.filters {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line);
+}
+.filters select, .filters input[type="text"] {
+    padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--paper-raised); font-family: var(--font-body); font-size: 0.88rem;
+}
+.filter-toggle {
+    padding: 7px 14px; border-radius: 20px; border: 1px solid var(--line);
+    background: var(--paper-raised); font-size: 0.82rem; cursor: pointer; color: var(--ink-soft);
+}
+.filter-toggle.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* --- Badges (leaderboard) --- */
+.badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 3px 9px; border-radius: 20px;
+}
+.badge-gold { background: #F1E1B7; color: var(--gold-dark); }
+.badge-silver { background: #E5E4DC; color: #5C5C52; }
+.badge-bronze { background: #E7D2C1; color: #7C4A2A; }
+.badge-newcomer { background: var(--line); color: var(--ink-soft); }
+
+.leader-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.leader-row:last-child { border-bottom: none; }
+.leader-rank { font-family: var(--font-mono); color: var(--ink-soft); width: 28px; }
+.leader-name { font-weight: 600; flex: 1; margin-left: 6px; }
+.leader-points { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-soft); }
+
+/* --- Dashboard stat tiles --- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+.stat-tile { background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+.stat-tile .num { font-family: var(--font-mono); font-size: 1.7rem; font-weight: 600; }
+.stat-tile .lbl { font-size: 0.78rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* --- Map --- */
+#campus-map { height: 340px; border-radius: var(--radius); border: 1px solid var(--line); }
+
+/* --- Countdown --- */
+.countdown-strip {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--danger-bg); color: var(--clay-dark);
+    padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin: 14px 0;
+}
+
+/* --- Footer --- */
+footer {
+    border-top: 1px solid var(--line);
+    padding: 30px 0;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+/* --- Toast --- */
+.toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--paper); padding: 12px 20px; border-radius: 8px;
+    font-size: 0.88rem; box-shadow: var(--shadow); z-index: 100;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+/* --- Empty state --- */
+.empty-state { text-align: center; padding: 50px 20px; color: var(--ink-soft); }
+
+/* --- Utility --- */
+.muted { color: var(--ink-soft); }
+.mt-0 { margin-top: 0; }
+.center { text-align: center; }
+.small { font-size: 0.82rem; }
+.divider { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
+
+/* --- Prevent the text-selection cursor on tappable UI chrome (buttons,
+   pills, tags, nav links) — these aren't meant to be selected as text.
+   Real content like descriptions and titles is left selectable. --- */
+/* Clickable elements — keep the pointer/hand cursor even though the body default is "default" */
+.btn,
+.filter-toggle,
+.nav-links a {
+    cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+.item-photo {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.form-group input[type="file"] {
+    padding: 8px;
+    border: 2px dashed #ddd;
+    border-radius: 4px;
+    width: 100%;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 4px;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #182d34;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 9px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}

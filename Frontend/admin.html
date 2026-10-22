@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    body { visibility: hidden; }
+    html[data-authed] body { visibility: visible; }
+</style>
+<script>
+(function () {
+    fetch('me.php', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.user) {
+                location.href = 'auth.html?redirect=' + encodeURIComponent(location.pathname + location.search);
+            } else {
+                document.documentElement.setAttribute('data-authed', '1');
+            }
+        })
+        .catch(function () {
+            location.href = 'auth.html';
+        });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — Campus Lost &amp; Found</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="home.html"><span class="brand-mark">L&amp;F</span> Campus Lost &amp; Found</a>
+        <nav class="nav-links">
+            <a href="home.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="admin.html" class="active">Dashboard</a>
+			<a href="donation.html">Donations</a>
+            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign out</a>
+        </nav>
+    </div>
+</header>
+
+<section class="section">
+    <div class="wrap">
+        <span class="eyebrow">Student Affairs · Internal view</span>
+        <h1>Admin dashboard</h1>
+        <p>Recovery performance, campus hotspots, and the Good Samaritan community — generated live by the Python analytics engine.</p>
+
+        <div class="stat-grid" id="stat-grid" style="margin-top:20px;">
+            <p class="muted">Loading stats…</p>
+        </div>
+
+        <div class="form-grid" style="margin-top:30px; align-items:start;">
+            <div class="field full" style="display:grid; grid-template-columns: 1.3fr 1fr; gap:24px;">
+                <div class="card">
+                    <h3 class="mt-0">Campus hotspots</h3>
+                    <img id="hotspot-chart" alt="Chart of items reported per campus location" style="border-radius:8px; border:1px solid var(--line);">
+                    <p class="small muted" id="hotspot-fallback" style="display:none;">Chart unavailable — matplotlib may not be installed. Raw counts below.</p>
+                    <ul id="hotspot-list" class="small muted"></ul>
+                </div>
+
+                <div class="card">
+                    <h3 class="mt-0">🏆 Good Samaritan leaderboard</h3>
+                    <div id="leaderboard-list"><p class="muted small">Loading…</p></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <h3 class="mt-0">📦 Ready for donation</h3>
+                <span class="small muted" id="donation-count"></span>
+            </div>
+            <p class="small muted" style="margin-top:-6px;">Found items past their 7-day unclaimed window — send to the campus charity drive.</p>
+            <div id="donation-queue"><p class="muted small">Loading…</p></div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <h3 class="mt-0">Category breakdown</h3>
+            <div id="category-bars"></div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <h3 class="mt-0">Open &amp; matched items — quick actions</h3>
+                <button class="btn btn-outline" id="refresh-btn">Refresh</button>
+            </div>
+            <div id="open-items"><p class="muted small">Loading…</p></div>
+        </div>
+    </div>
+</section>
+
+<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
+
+<script src="js/app.js"></script>
+<script>
+async function loadStats() {
+    try {
+        const s = await api('dashboard.php');
+        document.getElementById('stat-grid').innerHTML = `
+            <div class="stat-tile"><span class="num">${s.total_lost}</span><span class="lbl">Lost reports</span></div>
+            <div class="stat-tile"><span class="num">${s.total_found}</span><span class="lbl">Found reports</span></div>
+            <div class="stat-tile"><span class="num">${s.reunited}</span><span class="lbl">Reunited</span></div>
+            <div class="stat-tile"><span class="num">${s.donated}</span><span class="lbl">Donated</span></div>
+            <div class="stat-tile"><span class="num">${s.open_items}</span><span class="lbl">Still open</span></div>
+            <div class="stat-tile"><span class="num">${s.recovery_rate}%</span><span class="lbl">Recovery rate</span></div>
+        `;
+        if (s.chart_url) {
+            document.getElementById('hotspot-chart').src = s.chart_url;
+        } else {
+            document.getElementById('hotspot-chart').style.display = 'none';
+            document.getElementById('hotspot-fallback').style.display = 'block';
+        }
+        document.getElementById('hotspot-list').innerHTML = s.hotspots.map(h => `<li>${escapeHtml(h.location)} — ${h.count}</li>`).join('');
+
+        const maxCat = Math.max(...s.categories.map(c => c.count), 1);
+        document.getElementById('category-bars').innerHTML = s.categories.map(c => `
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <div style="width:110px; font-size:0.82rem;">${escapeHtml(c.category)}</div>
+                <div style="flex:1; background:var(--paper); border-radius:6px; overflow:hidden; height:14px;">
+                    <div style="width:${(c.count / maxCat * 100).toFixed(0)}%; background:var(--sage); height:100%;"></div>
+                </div>
+                <div style="width:24px; text-align:right; font-family:var(--font-mono); font-size:0.8rem;">${c.count}</div>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('stat-grid').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`;
+    }
+}
+
+async function loadLeaderboard() {
+    try {
+        const { leaderboard } = await api('leaderboard.php');
+        document.getElementById('leaderboard-list').innerHTML = leaderboard.length ? leaderboard.map((u, i) => `
+            <div class="leader-row">
+                <span class="leader-rank">#${i + 1}</span>
+                <span class="leader-name">${escapeHtml(u.full_name)}</span>
+                <span class="badge badge-${u.badge}">${u.badge}</span>
+                <span class="leader-points">${u.points} pts</span>
+            </div>
+        `).join('') : '<p class="muted small">No Good Samaritans yet — the first found-item report earns the first spot.</p>';
+    } catch (e) {
+        document.getElementById('leaderboard-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`;
+    }
+}
+
+async function loadOpenItems() {
+    try {
+        const { items } = await api('browse.php?sort=newest');
+        const open = items.filter(i => i.status === 'open' || i.status === 'matched');
+        document.getElementById('open-items').innerHTML = open.length ? `
+            <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+                <thead><tr style="text-align:left; font-size:0.78rem; text-transform:uppercase; color:var(--ink-soft);">
+                    <th style="padding:6px 0;">Item</th><th>Type</th><th>Location</th><th>Status</th><th></th>
+                </tr></thead>
+                <tbody>${open.map(i => `
+                    <tr style="border-top:1px solid var(--line);">
+                        <td style="padding:8px 0;"><a href="item-detail.html?id=${i.id}">${escapeHtml(i.title)}</a></td>
+                        <td>${i.report_type}</td>
+                        <td>${escapeHtml(i.location_name)}</td>
+                        <td><span class="status-pill status-${i.status}">${i.status}</span></td>
+                        <td style="text-align:right; white-space:nowrap;">
+                            <button class="btn btn-outline" style="padding:5px 10px; font-size:0.78rem;" onclick="adminAction(${i.id}, 'mark_reunited')">Reunited</button>
+                            <button class="btn btn-outline" style="padding:5px 10px; font-size:0.78rem;" onclick="adminAction(${i.id}, 'mark_donated')">Donate</button>
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>` : '<p class="muted small">Nothing open right now — the counter is clear. 🎉</p>';
+    } catch (e) {
+        document.getElementById('open-items').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`;
+    }
+}
+
+function daysOverdue(dateStr) {
+    const due = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((today - due) / 86400000);
+}
+
+async function loadDonationQueue() {
+    try {
+        const { items } = await api('browse.php?type=found&sort=newest');
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const queue = items
+            .filter(i => (i.status === 'open' || i.status === 'matched') && i.donate_after && new Date(i.donate_after + 'T00:00:00') <= today)
+            .sort((a, b) => new Date(a.donate_after) - new Date(b.donate_after));
+
+        document.getElementById('donation-count').textContent = queue.length ? `${queue.length} item${queue.length === 1 ? '' : 's'}` : '';
+
+        document.getElementById('donation-queue').innerHTML = queue.length ? `
+            <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+                <thead><tr style="text-align:left; font-size:0.78rem; text-transform:uppercase; color:var(--ink-soft);">
+                    <th style="padding:6px 0;">Item</th><th>Ticket</th><th>Location</th><th>Overdue</th><th></th>
+                </tr></thead>
+                <tbody>${queue.map(i => `
+                    <tr style="border-top:1px solid var(--line);">
+                        <td style="padding:8px 0;"><a href="item-detail.html?id=${i.id}">${escapeHtml(i.title)}</a></td>
+                        <td style="font-family:var(--font-mono); font-size:0.8rem;">${escapeHtml(i.ticket_code)}</td>
+                        <td>${escapeHtml(i.location_name)}</td>
+                        <td><span class="status-pill" style="background:var(--danger-bg); color:var(--clay-dark);">${daysOverdue(i.donate_after)}d overdue</span></td>
+                        <td style="text-align:right; white-space:nowrap;">
+                            <button class="btn btn-clay" style="padding:5px 10px; font-size:0.78rem;" onclick="adminAction(${i.id}, 'mark_donated')">Send to charity</button>
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>` : '<p class="muted small">Nothing overdue — every unclaimed found item is still inside its 7-day window. 🎉</p>';
+    } catch (e) {
+        document.getElementById('donation-queue').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`;
+    }
+}
+
+async function adminAction(itemId, action) {
+    try {
+        await api('admin_action.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: itemId, action })
+        });
+        toast('Updated');
+        loadOpenItems(); loadStats(); loadDonationQueue();
+    } catch (e) { toast('Error: ' + e.message); }
+}
+
+document.getElementById('refresh-btn').addEventListener('click', () => { loadStats(); loadOpenItems(); loadLeaderboard(); loadDonationQueue(); });
+loadStats(); loadLeaderboard(); loadOpenItems(); loadDonationQueue();
+</script>
+</body>
+</html>
