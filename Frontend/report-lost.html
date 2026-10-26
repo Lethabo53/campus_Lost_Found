@@ -1079,9 +1079,10 @@ footer {
             <a href="report-lost.html">Report Lost</a>
             <a href="report-found.html">Report Found</a>
             <a href="browse.html">Browse</a>
+            <a href="rewards.html">My Rewards</a>
             <a href="admin.html">Dashboard</a>
             <a href="donation.html">Donations</a>
-            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign out</a>
+            <a href="logout.php" id="nav-auth" class="nav-auth-link">Sign out</a>
         </nav>
     </div>
 </header>
@@ -1090,7 +1091,7 @@ footer {
     <div class="wrap" style="max-width:760px;">
         <span class="eyebrow">Lost item report</span>
         <h1>Tell us what you lost</h1>
-        <p>The more specific the description, the better our matching engine can find it. Drop a pin where you last had it.</p>
+        <p>The more specific the description, the better our matching engine can find it.</p>
 
         <form id="lost-form" class="card" style="margin-top:20px;" enctype="multipart/form-data">
             <div class="form-grid">
@@ -1122,15 +1123,7 @@ footer {
                 <div class="field">
                     <label for="event_date">Date lost</label>
                     <input type="date" id="event_date" name="event_date" required>
-                    <span class="hint">Only today's date can be selected.</span>
-                </div>
-                <div class="field full">
-                    <label for="location_name">Last seen location</label>
-                    <input type="text" id="location_name" name="location_name" placeholder="e.g. Library Main Entrance" required>
-                </div>
-                <div class="field full">
-                    <label>Pin the spot on the campus map <span class="hint">(click to drop a pin — optional but improves matching)</span></label>
-                    <div id="campus-map"></div>
+                    <span class="hint">Today or an earlier date. Future dates are not allowed.</span>
                 </div>
                 
                 <!-- Photo Upload Section -->
@@ -1166,19 +1159,29 @@ footer {
 <footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=3"></script>
 <script src="js/map.js"></script>
 <script>
 let picked = null;
-document.addEventListener('DOMContentLoaded', () => {
-    picked = initPickerMap('campus-map', (lat, lon) => { picked = { lat, lon }; });
+// Fill the reporter's name and email from the signed-in account
+function fillReporter() {
+    api('me.php').then(({ user }) => {
+        if (user) {
+            reporter_name.value = user.full_name;
+            reporter_email.value = user.email;
+            reporter_email.readOnly = true;
+        }
+    }).catch(() => {});
+}
 
-    // Restrict the date field to today only — no past or future dates
-    const todayStr = new Date().toISOString().split('T')[0];
+document.addEventListener('DOMContentLoaded', () => {
+
+    // Allow today and past dates only — future dates are blocked in the calendar
+    const todayStr = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
     const dateField = document.getElementById('event_date');
-    dateField.min = todayStr;
     dateField.max = todayStr;
     dateField.value = todayStr;
+    fillReporter();
     
     // Photo preview functionality
     const photoInput = document.getElementById('photos');
@@ -1240,9 +1243,9 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('lost-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (event_date.value !== todayStr) {
-        toast('Only the present date is valid — please select today\'s date.');
+    const todayStr = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+    if (!event_date.value || event_date.value > todayStr) {
+        toast('You cannot choose a future date. Please select today or an earlier date.');
         return;
     }
 
@@ -1256,12 +1259,9 @@ document.getElementById('lost-form').addEventListener('submit', async (e) => {
         formData.append('description', description.value);
         formData.append('brand_model', brand_model.value);
         formData.append('event_date', event_date.value);
-        formData.append('location_name', location_name.value);
         formData.append('reporter_name', reporter_name.value);
         formData.append('reporter_email', reporter_email.value);
         formData.append('urgent', document.getElementById('urgent').checked ? '1' : '0');
-        formData.append('latitude', window.pickedLatLng ? window.pickedLatLng.lat : null);
-        formData.append('longitude', window.pickedLatLng ? window.pickedLatLng.lon : null);
         
         // Add photos
         const photoInput = document.getElementById('photos');
@@ -1277,19 +1277,23 @@ document.getElementById('lost-form').addEventListener('submit', async (e) => {
         });
         document.getElementById('result-panel').innerHTML = `
             <div class="card" style="border-color:var(--sage);">
-                <h3>✅ Report filed — ticket ${escapeHtml(res.ticket_code)}</h3>
-                <p>We'll surface likely matches automatically. You can check progress any time from the
+                <h3>✅ Report sent — ticket ${escapeHtml(res.ticket_code)}</h3>
+                <p><strong>Your report has been sent to the admin for approval.</strong> Once approved it appears on the Browse page and we'll surface likely matches automatically. You can check progress any time from the
                 <a href="item-detail.html?id=${res.item_id}">item page</a>.</p>
             </div>`;
         e.target.reset();
+        fillReporter();
+        event_date.value = todayStr;
         document.getElementById('photo-preview').innerHTML = '';
-        toast('Lost report submitted');
+        toast('Sent to the admin for approval');
     } catch (err) {
         toast('Error: ' + err.message);
     } finally {
         btn.disabled = false; btn.textContent = 'Submit lost report';
     }
 });
+
 </script>
+<script src="js/chatbot.js"></script>
 </body>
 </html>

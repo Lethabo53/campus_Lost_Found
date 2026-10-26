@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+html:not([data-authed]) body { visibility: hidden; }
+</style>
+<script>
+(function () {
+    fetch('me.php', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.user) {
+                location.href = 'auth.html?redirect=' + encodeURIComponent(location.pathname + location.search);
+            } else if (data.user.role !== 'admin') {
+                location.href = 'home.html';
+            } else {
+                document.documentElement.setAttribute('data-authed', '1');
+            }
+        })
+        .catch(function () { location.href = 'auth.html'; });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin console — Campus Lost &amp; Found</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.tabs { display:flex; gap:8px; flex-wrap:wrap; margin:18px 0 20px; border-bottom:1px solid var(--line); padding-bottom:12px; }
+.tab-btn { border:1px solid var(--line); background:var(--paper-raised); color:var(--ink); padding:8px 14px; border-radius:999px; cursor:pointer; font:inherit; font-weight:600; }
+.tab-btn.active { background:var(--sage); border-color:var(--sage); color:#fff; }
+.tab-btn .count { display:inline-block; min-width:20px; margin-left:6px; padding:0 6px; border-radius:999px; background:var(--clay); color:#fff; font-size:.75rem; line-height:20px; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+.review-card { display:grid; grid-template-columns:150px 1fr; gap:18px; margin-bottom:16px; }
+.review-photo { width:150px; height:150px; object-fit:cover; border-radius:8px; border:1px solid var(--line); background:var(--paper); }
+.review-photo-empty { width:150px; height:150px; border-radius:8px; border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:.8rem; text-align:center; }
+.kv { font-size:.88rem; margin:3px 0; }
+.kv b { color:var(--ink-soft); font-weight:600; }
+.actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.report-table { width:100%; border-collapse:collapse; margin-top:14px; font-size:.9rem; }
+.report-table th { text-align:left; font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); padding:8px 10px; border-bottom:2px solid var(--line); }
+.report-table td { padding:8px 10px; border-bottom:1px solid var(--line); }
+.report-table tr.total td { font-weight:700; border-top:2px solid var(--ink); background:var(--paper); }
+.report-controls { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+.report-controls .field { margin-bottom:0; }
+.bar { height:10px; background:var(--sage); border-radius:5px; min-width:2px; }
+.bubble { max-width:80%; padding:9px 13px; border-radius:14px; font-size:.93rem; line-height:1.45; white-space:pre-wrap; word-wrap:break-word; }
+.bubble .when { display:block; font-size:.7rem; opacity:.7; margin-top:4px; }
+.bubble.me { align-self:flex-end; background:var(--sage); color:#fff; border-bottom-right-radius:4px; }
+.bubble.them { align-self:flex-start; background:var(--paper); border:1px solid var(--line); border-bottom-left-radius:4px; }
+.thread { border:1px solid var(--line); background:var(--paper-raised); border-radius:10px; padding:10px 12px; cursor:pointer; text-align:left; font:inherit; color:var(--ink); }
+.thread.active { border-color:var(--sage); box-shadow:0 0 0 2px var(--sage) inset; }
+.thread b { display:block; font-size:.92rem; } .thread .small { display:block; margin-top:2px; }
+.thread .dot { display:inline-block; min-width:18px; padding:0 6px; border-radius:999px; background:var(--clay); color:#fff; font-size:.72rem; line-height:18px; text-align:center; margin-left:6px; }
+.quick button { border:1px solid var(--line); background:var(--paper-raised); border-radius:999px; padding:5px 11px; font:inherit; font-size:.82rem; cursor:pointer; color:var(--ink); }
+@media (max-width:760px) { #msg-wrap { grid-template-columns:1fr !important; } }
+@media (max-width:640px) { .review-card { grid-template-columns:1fr; } }
+@media print {
+    .topbar, footer, .tabs, .report-controls, .no-print, #lf-chat-launcher, #lf-chat { display:none !important; }
+    body { background:#fff; }
+    .card { box-shadow:none; border:none; padding:0; }
+    .tab-panel { display:none !important; }
+    #tab-reports { display:block !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="home.html"><span class="brand-mark">L&amp;F</span> Campus Lost &amp; Found</a>
+        <nav class="nav-links">
+            <a href="home.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="rewards.html">My Rewards</a>
+            <a href="admin.html">Dashboard</a>
+            <a href="donation.html">Donations</a>
+            <a href="logout.php" id="nav-auth" class="nav-auth-link">Sign out</a>
+        </nav>
+    </div>
+</header>
+
+<section class="section">
+    <div class="wrap">
+        <span class="eyebrow">Student Affairs · Admin only</span>
+        <h1>Admin console</h1>
+        <p class="muted">Every report comes here first. Approve it to publish it for everyone, then handle claims, donations, snack codes and reports from this one page.</p>
+
+        <div class="tabs" role="tablist">
+            <button class="tab-btn active" data-tab="approvals">Approvals <span class="count" id="count-approvals">0</span></button>
+            <button class="tab-btn" data-tab="claims">Claims <span class="count" id="count-claims">0</span></button>
+            <button class="tab-btn" data-tab="donations">Donations <span class="count" id="count-donations">0</span></button>
+            <button class="tab-btn" data-tab="codes">Snack codes <span class="count" id="count-codes">0</span></button>
+            <button class="tab-btn" data-tab="messages">Messages <span class="count" id="count-messages">0</span></button>
+            <button class="tab-btn" data-tab="reports">Reports</button>
+        </div>
+
+        <!-- ================= APPROVALS ================= -->
+        <div class="tab-panel active" id="tab-approvals">
+            <h2 class="mt-0">Reports waiting for approval</h2>
+            <p class="small muted">Check each report. When you approve it, it appears on Browse for everyone, matching starts, and (for found items) the finder earns their points and snack credits.</p>
+            <div id="approvals-list"><p class="muted">Loading…</p></div>
+        </div>
+
+        <!-- ================= CLAIMS ================= -->
+        <div class="tab-panel" id="tab-claims">
+            <h2 class="mt-0">Verified claims</h2>
+            <p class="small muted">These owners answered both security questions correctly. Contact both people, arrange the hand-over, then press <b>Handed over</b>. The finder then receives their reunion bonus. Contact details are only shown here, never to the other student.</p>
+            <div id="claims-list"><p class="muted">Loading…</p></div>
+        </div>
+
+        <!-- ================= DONATIONS ================= -->
+        <div class="tab-panel" id="tab-donations">
+            <h2 class="mt-0">Ready for donation</h2>
+            <p class="small muted">Found items nobody claimed within 30 days (720 hours) of being reported. Only you can send them to charity.</p>
+            <div id="donations-list"><p class="muted">Loading…</p></div>
+        </div>
+
+        <!-- ================= SNACK CODES ================= -->
+        <div class="tab-panel" id="tab-codes">
+            <h2 class="mt-0">Snack codes</h2>
+            <p class="small muted">Students show a code like SN-1A2B3C4D at the snack venue. Press <b>Collected</b> once the snack has been handed over. A code can only be used once.</p>
+            <form id="code-form" class="report-controls" style="margin:12px 0;">
+                <div class="field"><label for="code-input">Enter a code</label><input type="text" id="code-input" placeholder="SN-XXXXXXXX" required></div>
+                <button class="btn btn-sage" type="submit" style="margin-bottom:16px;">Mark collected</button>
+            </form>
+            <div id="codes-list"><p class="muted">Loading…</p></div>
+        </div>
+
+        <!-- ================= MESSAGES ================= -->
+        <div class="tab-panel" id="tab-messages">
+            <h2 class="mt-0">Student messages</h2>
+            <p class="small muted">Students write to you here about their items. Reply to tell them how and when to collect, or what to bring (student card).</p>
+            <div style="display:grid; grid-template-columns:300px 1fr; gap:18px; align-items:start;" id="msg-wrap">
+                <div id="msg-threads" style="display:flex; flex-direction:column; gap:8px;"><p class="muted small">Loading…</p></div>
+                <div class="card">
+                    <h3 class="mt-0" id="msg-title">Choose a conversation</h3>
+                    <p class="small muted" id="msg-sub"></p>
+                    <div id="msg-box" style="display:flex; flex-direction:column; gap:10px; max-height:380px; overflow-y:auto; padding-bottom:10px;"></div>
+                    <form id="msg-form" style="display:none;">
+                        <div class="quick" style="display:flex; gap:8px; flex-wrap:wrap; margin:8px 0;" id="msg-quick"></div>
+                        <div class="field"><label for="msg-body">Reply</label><textarea id="msg-body" rows="3" maxlength="1500" required></textarea></div>
+                        <div id="msg-error" class="small" style="color:var(--danger); display:none; margin-bottom:10px;"></div>
+                        <button class="btn btn-sage" type="submit">Send reply</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= REPORTS ================= -->
+        <div class="tab-panel" id="tab-reports">
+            <h2 class="mt-0">Reports</h2>
+            <div class="card no-print">
+                <div class="report-controls">
+                    <div class="field">
+                        <label for="report-type">Report</label>
+                        <select id="report-type">
+                            <option value="summary">Summary — overall performance</option>
+                            <option value="categories" selected>Items by category — claimed, returned, donated</option>
+                            <option value="trend">Monthly trend</option>
+                            <option value="outcomes">Outcomes — returned and donated items</option>
+                            <option value="rewards">Rewards — points, credits and redemptions</option>
+                        </select>
+                    </div>
+                    <div class="field"><label for="report-from">From</label><input type="date" id="report-from"></div>
+                    <div class="field"><label for="report-to">To</label><input type="date" id="report-to"></div>
+                    <button class="btn btn-sage" id="report-run" type="button" style="margin-bottom:16px;">Show report</button>
+                    <a class="btn btn-outline" id="report-csv" href="#" style="margin-bottom:16px;">Download CSV (Excel)</a>
+                    <button class="btn btn-outline" id="report-print" type="button" style="margin-bottom:16px;">Print / Save as PDF</button>
+                </div>
+            </div>
+            <div class="card" id="report-output" style="margin-top:18px;"><p class="muted">Choose a report and press <b>Show report</b>.</p></div>
+        </div>
+    </div>
+</section>
+
+<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
+
+<script src="js/app.js?v=3"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    $('tab-' + btn.dataset.tab).classList.add('active');
+}));
+
+async function post(url, body) {
+    return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+
+function setCount(id, n) { const el = $(id); el.textContent = n; el.style.display = n ? 'inline-block' : 'none'; }
+
+/* ---------- approvals ---------- */
+async function loadApprovals() {
+    try {
+        const { items } = await api('admin_review.php?view=pending');
+        setCount('count-approvals', items.length);
+        $('approvals-list').innerHTML = items.length ? items.map(i => `
+            <div class="card review-card">
+                ${i.photo ? `<img class="review-photo" src="${escapeHtml(i.photo)}" alt="">` : '<div class="review-photo-empty">No photo</div>'}
+                <div>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <span class="ticket-code">${escapeHtml(i.ticket_code)}</span>
+                        <span class="ticket-tag ${i.report_type === 'lost' ? 'tag-lost' : 'tag-found'}">${i.report_type === 'lost' ? '🔍 Lost' : '✅ Found'}</span>
+                        ${i.urgent == 1 ? '<span class="ticket-tag tag-urgent">Urgent</span>' : ''}
+                    </div>
+                    <h3 style="margin:6px 0;">${escapeHtml(i.title)}</h3>
+                    <div class="kv"><b>Category:</b> ${escapeHtml(i.category)} &nbsp; <b>Colour:</b> ${escapeHtml(i.color || '—')} &nbsp; <b>Brand/model:</b> ${escapeHtml(i.brand_model || '—')}</div>
+                    <div class="kv"><b>Where:</b> ${escapeHtml(i.location_name || "—")} &nbsp; <b>Date:</b> ${escapeHtml(i.event_date)}</div>
+                    <div class="kv"><b>Description:</b> ${escapeHtml(i.description)}</div>
+                    <div class="kv"><b>Reported by:</b> ${escapeHtml(i.reporter_name)} — ${escapeHtml(i.reporter_email)}</div>
+                    ${i.report_type === 'found' ? `
+                        <div class="kv"><b>Security Q1:</b> ${escapeHtml(i.security_question_1 || '')} → <b>${escapeHtml(i.security_answer_1 || '')}</b></div>
+                        <div class="kv"><b>Security Q2:</b> ${escapeHtml(i.security_question_2 || '')} → <b>${escapeHtml(i.security_answer_2 || '')}</b></div>` : ''}
+                    <div class="actions">
+                        <button class="btn btn-sage" onclick="approveItem(${i.id})">Approve &amp; publish</button>
+                        <button class="btn btn-clay" onclick="rejectItem(${i.id})">Reject…</button>
+                    </div>
+                </div>
+            </div>`).join('') : '<p class="muted">Nothing waiting — every report has been reviewed. 🎉</p>';
+    } catch (e) { $('approvals-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`; }
+}
+async function approveItem(id) {
+    try { await post('admin_review.php', { action: 'approve', item_id: id }); toast('Approved — now visible to everyone'); refreshAll(); }
+    catch (e) { toast('Error: ' + e.message); }
+}
+async function rejectItem(id) {
+    const reason = prompt('Why is this report being rejected? (the student will see this)');
+    if (reason === null) return;
+    try { await post('admin_review.php', { action: 'reject', item_id: id, reason }); toast('Report rejected'); refreshAll(); }
+    catch (e) { toast('Error: ' + e.message); }
+}
+
+/* ---------- claims ---------- */
+async function loadClaims() {
+    try {
+        const { claims } = await api('admin_review.php?view=claims');
+        setCount('count-claims', claims.length);
+        $('claims-list').innerHTML = claims.length ? claims.map(c => `
+            <div class="card review-card">
+                ${c.photo ? `<img class="review-photo" src="${escapeHtml(c.photo)}" alt="">` : '<div class="review-photo-empty">No photo</div>'}
+                <div>
+                    <span class="ticket-code">${escapeHtml(c.ticket_code)}</span>
+                    <h3 style="margin:6px 0;"><a href="item-detail.html?id=${c.item_id}">${escapeHtml(c.title)}</a></h3>
+                    <div class="kv"><b>Category:</b> ${escapeHtml(c.category)}</div>
+                    <div class="kv"><b>Owner (claimant):</b> ${escapeHtml(c.claimant_name)} — ${escapeHtml(c.claimant_email)}</div>
+                    <div class="kv"><b>Finder:</b> ${escapeHtml(c.finder_name)} — ${escapeHtml(c.finder_email)}</div>
+                    <div class="kv"><b>Claim sent:</b> ${escapeHtml(c.claimed_at)}</div>
+                    <div class="actions">
+                        <button class="btn btn-sage" onclick="handedOver(${c.item_id})">Handed over</button>
+                        <button class="btn btn-outline" onclick="rejectClaim(${c.claim_id})">Reject claim</button>
+                    </div>
+                </div>
+            </div>`).join('') : '<p class="muted">No claims waiting.</p>';
+    } catch (e) { $('claims-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`; }
+}
+async function handedOver(itemId) {
+    if (!confirm('Confirm the item was handed to its owner?')) return;
+    try { await post('admin_action.php', { action: 'mark_reunited', item_id: itemId }); toast('Reunited — finder rewarded'); refreshAll(); }
+    catch (e) { toast('Error: ' + e.message); }
+}
+async function rejectClaim(claimId) {
+    if (!confirm('Reject this claim? The item goes back on the Browse page as open.')) return;
+    try { await post('admin_review.php', { action: 'reject_claim', claim_id: claimId }); toast('Claim rejected'); refreshAll(); }
+    catch (e) { toast('Error: ' + e.message); }
+}
+
+/* ---------- donations ---------- */
+async function loadDonations() {
+    try {
+        const { items } = await api('donations.php');
+        setCount('count-donations', items.length);
+        $('donations-list').innerHTML = items.length ? `
+            <table class="report-table"><thead><tr><th>Ticket</th><th>Item</th><th>Category</th><th>Reported</th><th></th></tr></thead>
+            <tbody>${items.map(i => `<tr>
+                <td style="font-family:var(--font-mono);">${escapeHtml(i.ticket_code)}</td>
+                <td><a href="item-detail.html?id=${i.id}">${escapeHtml(i.title)}</a></td>
+                <td>${escapeHtml(i.category)}</td><td>${escapeHtml(String(i.created_at).slice(0, 10))}</td>
+                <td style="text-align:right;"><button class="btn btn-clay" style="padding:5px 10px; font-size:.8rem;" onclick="donate(${i.id})">♥ Send to charity</button></td>
+            </tr>`).join('')}</tbody></table>` : '<p class="muted">Nothing is past its 30-day window yet.</p>';
+    } catch (e) { $('donations-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`; }
+}
+async function donate(id) {
+    if (!confirm('Mark this item as donated to the campus charity drive?')) return;
+    try { await post('admin_action.php', { action: 'mark_donated', item_id: id }); toast('Item sent to charity ♥'); refreshAll(); }
+    catch (e) { toast('Error: ' + e.message); }
+}
+
+/* ---------- snack codes ---------- */
+async function loadCodes() {
+    try {
+        const { redemptions } = await api('admin_redemptions.php');
+        setCount('count-codes', redemptions.length);
+        $('codes-list').innerHTML = redemptions.length ? `
+            <table class="report-table"><thead><tr><th>Code</th><th>Student</th><th>Credits</th><th>Created</th><th></th></tr></thead>
+            <tbody>${redemptions.map(r => `<tr>
+                <td style="font-family:var(--font-mono);">${escapeHtml(r.code)}</td>
+                <td>${escapeHtml(r.full_name)}<br><span class="small muted">${escapeHtml(r.email)}</span></td>
+                <td>${r.credits}</td><td>${escapeHtml(r.created_at)}</td>
+                <td style="text-align:right;"><button class="btn btn-sage" style="padding:5px 10px; font-size:.8rem;" onclick="collectCode('${escapeHtml(r.code)}')">Collected</button></td>
+            </tr>`).join('')}</tbody></table>` : '<p class="muted">No snack codes waiting to be collected.</p>';
+    } catch (e) { $('codes-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`; }
+}
+async function collectCode(code) {
+    try { await post('admin_action.php', { action: 'fulfill_redemption', code }); toast('Code marked as collected'); loadCodes(); }
+    catch (e) { toast('Error: ' + e.message); }
+}
+$('code-form').addEventListener('submit', (e) => { e.preventDefault(); collectCode($('code-input').value.trim().toUpperCase()); $('code-input').value = ''; });
+
+/* ---------- reports ---------- */
+function reportQuery(extra) {
+    const p = new URLSearchParams({ report: $('report-type').value, from: $('report-from').value, to: $('report-to').value, ...extra });
+    return 'admin_reports.php?' + p.toString();
+}
+async function runReport() {
+    const out = $('report-output');
+    out.innerHTML = '<p class="muted">Loading…</p>';
+    try {
+        const r = await api(reportQuery({}));
+        const maxIdx = (r.report === 'categories' || r.report === 'hotspots') ? 1 : -1;
+        out.innerHTML = `
+            <h2 style="margin-top:0;">${escapeHtml(r.title)}</h2>
+            <p class="small muted">${escapeHtml(r.period)} · Generated ${escapeHtml(r.generated)} · Campus Lost &amp; Found — Richfield Centurion Campus</p>
+            ${r.rows.length ? `
+            <table class="report-table"><thead><tr>${r.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
+            <tbody>
+                ${r.rows.map(row => `<tr>${row.map(v => `<td>${escapeHtml(String(v ?? ''))}</td>`).join('')}</tr>`).join('')}
+                ${r.totals ? `<tr class="total">${r.totals.map(v => `<td>${escapeHtml(String(v ?? ''))}</td>`).join('')}</tr>` : ''}
+            </tbody></table>` : '<p class="muted">No data for this period.</p>'}`;
+        $('report-csv').href = reportQuery({ format: 'csv' });
+    } catch (e) { out.innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`; }
+}
+$('report-run').addEventListener('click', runReport);
+$('report-type').addEventListener('change', runReport);
+$('report-print').addEventListener('click', async () => { await runReport(); window.print(); });
+$('report-csv').addEventListener('click', () => { $('report-csv').href = reportQuery({ format: 'csv' }); });
+
+/* ---------- messages ---------- */
+let msgCur = null;
+const fmtT = (ts) => new Date(ts.replace(' ', 'T')).toLocaleString([], { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+const QUICK_REPLIES = [
+    'Thanks for your message. Please come to the admin office with your student card and we will hand over the item.',
+    'Please tell us one more detail about the item (a mark, a sticker, what was inside).',
+    'Your item is ready for collection. Office hours: 08:00-16:00.'
+];
+async function loadMessages() {
+    try {
+        const { threads } = await api('messages.php?action=inbox');
+        setCount('count-messages', threads.reduce((n, t) => n + t.unread, 0));
+        $('msg-threads').innerHTML = threads.length ? threads.map(t => {
+            const label = t.item_id ? escapeHtml((t.ticket_code || '') + ' · ' + (t.item_title || 'Item')) : 'General question';
+            const active = msgCur && msgCur.s == t.student_id && msgCur.i == t.item_id;
+            return `<button class="thread ${active ? 'active' : ''}" data-s="${t.student_id}" data-i="${t.item_id}" data-t="${label}">
+                <b>${label}${t.unread ? `<span class="dot">${t.unread}</span>` : ''}</b>
+                <span class="small muted">${escapeHtml(t.student_name)} — ${escapeHtml(t.last_body)}</span></button>`;
+        }).join('') : '<p class="muted small">No messages yet.</p>';
+        $('msg-threads').querySelectorAll('.thread').forEach(b => b.addEventListener('click', () => openMsg(+b.dataset.s, +b.dataset.i, b.dataset.t)));
+    } catch (e) { $('msg-threads').innerHTML = '<p class="muted small">Could not load messages.</p>'; }
+}
+async function openMsg(s, i, title) {
+    msgCur = { s, i, t: title };
+    const d = await api(`messages.php?action=thread&student_id=${s}&item_id=${i}`);
+    $('msg-title').textContent = title || 'Conversation';
+    $('msg-sub').textContent = d.student ? `${d.student.full_name} (${d.student.email})` : '';
+    $('msg-box').innerHTML = d.messages.map(m => `<div class="bubble ${m.sender === 'admin' ? 'me' : 'them'}">${escapeHtml(m.body)}<span class="when">${m.sender === 'admin' ? 'You' : 'Student'} · ${fmtT(m.created_at)}</span></div>`).join('');
+    $('msg-box').scrollTop = 1e6;
+    $('msg-form').style.display = 'block';
+    $('msg-quick').innerHTML = QUICK_REPLIES.map(t => `<button type="button">${escapeHtml(t)}</button>`).join('');
+    $('msg-quick').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { $('msg-body').value = b.textContent; }));
+    loadMessages();
+}
+$('msg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('msg-error'); err.style.display = 'none';
+    try {
+        await post('messages.php', { student_id: msgCur.s, item_id: msgCur.i, body: $('msg-body').value });
+        $('msg-body').value = '';
+        openMsg(msgCur.s, msgCur.i, msgCur.t);
+    } catch (ex) { err.textContent = ex.message || 'Could not send.'; err.style.display = 'block'; }
+});
+
+function refreshAll() { loadApprovals(); loadClaims(); loadDonations(); loadCodes(); loadMessages(); }
+setInterval(loadMessages, 30000);
+refreshAll();
+runReport();
+</script>
+<script src="js/chatbot.js"></script>
+</body>
+</html>

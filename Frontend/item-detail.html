@@ -37,9 +37,10 @@
             <a href="report-lost.html">Report Lost</a>
             <a href="report-found.html">Report Found</a>
             <a href="browse.html">Browse</a>
+            <a href="rewards.html">My Rewards</a>
             <a href="admin.html">Dashboard</a>
             <a href="donation.html">Donations</a>
-            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign in</a>
+            <a href="logout.php" id="nav-auth" class="nav-auth-link">Sign out</a>
         </nav>
     </div>
 </header>
@@ -52,7 +53,7 @@
 
 <footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
 
-<script src="js/app.js"></script>
+<script src="js/app.js?v=3"></script>
 <script>
 const itemId = new URLSearchParams(location.search).get('id');
 
@@ -87,7 +88,7 @@ function claimFormHtml() {
     return `
         <div class="card" style="margin-top:20px;" id="claim-card">
             <h3 class="mt-0">Is this yours?</h3>
-            <p class="small">Answer both questions the finder set. If they match, you'll get the finder's contact details right here — no guessing games, no false claims.</p>
+            <p class="small">Answer both questions the finder set. If they match, your claim goes to the campus admin, who will contact you to arrange the hand-over. The finder's details stay private.</p>
             <form id="claim-form">
                 <div class="field">
                     <label id="claim-q1-label" for="claim-answer-1">Question 1</label>
@@ -118,7 +119,9 @@ async function load() {
 
         const isLost = item.report_type === 'lost';
         const isFound = item.report_type === 'found';
-        const canClaim = isFound && (item.status === 'open' || item.status === 'matched');
+        const canClaim = isFound && item.approval_status === 'approved' && !item.is_owner && (item.status === 'open' || item.status === 'matched');
+        const showCountdown = isFound && item.approval_status === 'approved' && (item.status === 'open' || item.status === 'matched');
+        const canCloseOwn = isLost && item.is_owner && (item.status === 'open' || item.status === 'matched');
 
         const photoClearClass = isLost ? 'is-clear' : '';
         const photoHtml = item.photo
@@ -148,6 +151,51 @@ async function load() {
                 ${photoHtml}
             </div>
 
+            ${item.approval_status === 'pending' ? `
+                <div class="card" style="margin-top:20px; border-color:var(--gold);">
+                    <h3 class="mt-0">⏳ Waiting for admin approval</h3>
+                    <p class="small">The admin reviews every report before it is shown to everyone on the site. You will see it on the Browse page as soon as it is approved.</p>
+                </div>` : ''}
+            ${item.approval_status === 'rejected' ? `
+                <div class="card" style="margin-top:20px; border-color:var(--danger);">
+                    <h3 class="mt-0">This report was not approved</h3>
+                    <p class="small">${escapeHtml(item.rejection_reason || 'It did not meet the reporting guidelines.')}</p>
+                    <a class="btn btn-outline" href="${item.report_type === 'lost' ? 'report-lost.html' : 'report-found.html'}">Submit a new report</a>
+                </div>` : ''}
+            ${item.is_admin ? `
+                <div class="card" style="margin-top:20px; border-color:var(--sage);">
+                    <h3 class="mt-0">Admin view</h3>
+                    <p class="small"><strong>Reported by:</strong> ${escapeHtml(item.reporter_name || '')} — ${escapeHtml(item.reporter_email || '')}</p>
+                    ${item.report_type === 'found' ? `
+                    <p class="small"><strong>Q1:</strong> ${escapeHtml(item.security_question_1 || '')}<br><strong>A1:</strong> ${escapeHtml(item.security_answer_1 || '')}</p>
+                    <p class="small"><strong>Q2:</strong> ${escapeHtml(item.security_question_2 || '')}<br><strong>A2:</strong> ${escapeHtml(item.security_answer_2 || '')}</p>` : ''}
+                    <a class="btn btn-outline" href="admin-console.html">Open the admin console</a>
+                </div>` : ''}
+
+            ${showCountdown ? `
+                <div class="card" style="margin-top:20px;" id="countdown-card">
+                    <h3 class="mt-0">⏳ Claim window</h3>
+                    <p class="small">Unclaimed items are donated to charity 30 days (720 hours) after they were reported.</p>
+                    <div id="countdown-hours" style="font-family:var(--font-mono); font-size:2.2rem; font-weight:600; color:var(--sage-dark); margin:6px 0;">—</div>
+                    <div id="countdown-detail" class="small muted"></div>
+                </div>
+            ` : ''}
+
+            ${canCloseOwn ? `
+                <div class="card" style="margin-top:20px;" id="own-card">
+                    <h3 class="mt-0">Got your item back?</h3>
+                    <p class="small">If you have found or recovered this item yourself, mark it as found to close this report. Reward points are only given to people who hand in items that belong to someone else.</p>
+                    <button class="btn btn-sage" type="button" id="mark-found-btn">I found my item</button>
+                </div>
+            ` : ''}
+
+            ${(!item.is_admin && (item.approval_status === 'approved' || item.is_owner)) ? `
+                <div class="card" style="margin-top:20px;">
+                    <h3 class="mt-0">Need help with this item?</h3>
+                    <p class="small">Write to the campus admin about this item, for example to say it is yours or to ask how to collect it.</p>
+                    <a class="btn btn-outline" href="messages.html?item=${item.id}">Message the admin</a>
+                </div>` : ''}
+
             ${canClaim ? claimFormHtml() : ''}
 
             ${isLost && matches && matches.length ? `
@@ -157,6 +205,49 @@ async function load() {
                 </div>
             ` : ''}
         `;
+
+        if (showCountdown) {
+            let remaining = item.seconds_left;
+            const hoursEl = document.getElementById('countdown-hours');
+            const detailEl = document.getElementById('countdown-detail');
+            function tick() {
+                if (remaining <= 0) {
+                    hoursEl.textContent = '0 hours';
+                    detailEl.textContent = 'The claim window has ended. This item is now eligible for donation.';
+                    return;
+                }
+                const totalHours = Math.ceil(remaining / 3600);
+                const d = Math.floor(remaining / 86400);
+                const h = Math.floor((remaining % 86400) / 3600);
+                const m = Math.floor((remaining % 3600) / 60);
+                const sec = remaining % 60;
+                hoursEl.textContent = totalHours + (totalHours === 1 ? ' hour left' : ' hours left');
+                detailEl.textContent = d + 'd ' + h + 'h ' + m + 'm ' + sec + 's remaining — counted from the day this item was reported.';
+                remaining--;
+                setTimeout(tick, 1000);
+            }
+            tick();
+        }
+
+        if (canCloseOwn) {
+            document.getElementById('mark-found-btn').addEventListener('click', async (e) => {
+                if (!confirm('Mark this item as found and close your report?')) return;
+                const btn = e.target;
+                btn.disabled = true;
+                try {
+                    await api('mark_found.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ item_id: item.id })
+                    });
+                    toast('Great! Your report has been closed.');
+                    setTimeout(() => location.reload(), 900);
+                } catch (err) {
+                    btn.disabled = false;
+                    toast('Error: ' + err.message);
+                }
+            });
+        }
 
         if (canClaim) {
             document.getElementById('claim-q1-label').textContent = item.security_question_1 || 'Question 1';
@@ -182,12 +273,12 @@ async function load() {
                     const successEl = document.getElementById('claim-success');
                     successEl.style.display = 'block';
                     successEl.innerHTML = `
-                        <p class="small" style="color:var(--sage-dark); font-weight:600;">✅ Verified! Here's how to reach the finder:</p>
-                        <p><strong>${escapeHtml(res.contact.name)}</strong><br>${escapeHtml(res.contact.email)}</p>
+                        <p class="small" style="color:var(--sage-dark); font-weight:600;">✅ ${escapeHtml(res.message)}</p>
+                        <p class="small muted">Keep an eye on your student email — the admin will get in touch with you.</p>
                     `;
                     const photo = document.getElementById('item-photo');
                     if (photo) photo.classList.add('is-clear');
-                    toast('Claim verified!');
+                    toast('Claim sent to the admin');
                 } catch (err) {
                     errEl.textContent = err.message;
                     errEl.style.display = 'block';
@@ -202,5 +293,6 @@ async function load() {
 
 load();
 </script>
+<script src="js/chatbot.js"></script>
 </body>
 </html>

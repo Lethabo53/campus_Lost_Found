@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/db.php';
+date_default_timezone_set('Africa/Johannesburg');
 require_once __DIR__ . '/matches.php';
 
 header('Content-Type: application/json');
@@ -10,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_login($pdo);
+$user = require_login($pdo);
 
 $title            = clean($_POST['title'] ?? '');
 $category         = clean($_POST['category'] ?? '');
@@ -29,8 +30,12 @@ $reporterEmail    = clean($_POST['reporter_email'] ?? '');
 $latitude         = ($_POST['latitude'] ?? '') !== '' ? (float) $_POST['latitude'] : null;
 $longitude        = ($_POST['longitude'] ?? '') !== '' ? (float) $_POST['longitude'] : null;
 
+// Always use the signed-in account's identity (a person cannot report as someone else)
+$reporterName  = $user['full_name'];
+$reporterEmail = strtolower($user['email']);
+
 if ($title === '' || $category === '' || $description === '' || $eventDate === ''
-    || $locationName === '' || $reporterName === '' || $reporterEmail === ''
+    || $reporterName === '' || $reporterEmail === ''
     || $securityQuestion1 === '' || $securityAnswer1 === ''
     || $securityQuestion2 === '' || $securityAnswer2 === '') {
     http_response_code(400);
@@ -38,10 +43,52 @@ if ($title === '' || $category === '' || $description === '' || $eventDate === '
     exit;
 }
 
-if ($eventDate !== date('Y-m-d')) {
+// Any campus location is allowed. The five hotspots below are tracked on the dashboard,
+// so we tidy up the spelling/capitalisation when someone types one of them.
+$hotspots = ['PC Lab 1', 'PC Lab 2', 'PC Lab 3', 'Cafeteria', 'Library'];
+foreach ($hotspots as $spot) {
+    if (strcasecmp($locationName, $spot) === 0) {
+        $locationName = $spot;
+        break;
+    }
+}
+if (mb_strlen($locationName) > 255) {
     http_response_code(422);
-    echo json_encode(['error' => "Only the present date is valid — please select today's date."]);
+    echo json_encode(['error' => 'Location is too long (maximum 255 characters).']);
     exit;
+}
+
+$parsedDate = DateTime::createFromFormat('Y-m-d', $eventDate);
+if (!$parsedDate || $parsedDate->format('Y-m-d') !== $eventDate) {
+    http_response_code(422);
+    echo json_encode(['error' => 'Please enter a valid date.']);
+    exit;
+}
+if ($eventDate > date('Y-m-d')) {
+    http_response_code(422);
+    echo json_encode(['error' => 'You cannot choose a future date. Please select today or an earlier date.']);
+    exit;
+}
+
+// A person cannot report their OWN lost item as "found" (this would farm reward points).
+// If they got their item back, they open their lost report and press "I found my item" instead.
+$ownLost = $pdo->prepare(
+    "SELECT ticket_code, title, description
+     FROM items
+     WHERE report_type = 'lost'
+       AND LOWER(reporter_email) = ?
+       AND category = ?
+       AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)"
+);
+$ownLost->execute([$reporterEmail, $category]);
+foreach ($ownLost->fetchAll() as $lost) {
+    if (text_similarity($title, $lost['title']) >= 45
+        || text_similarity($description, $lost['description']) >= 45) {
+        http_response_code(422);
+        echo json_encode(['error' => 'This looks like the item you reported lost (ticket ' . $lost['ticket_code']
+            . '). If you got it back, open your lost report and press "I found my item" instead.']);
+        exit;
+    }
 }
 
 try {
@@ -122,23 +169,21 @@ try {
         }
     }
 
-    // --- Award Good Samaritan points ---
-    $userId = find_or_create_user($pdo, $reporterName, $reporterEmail);
-    $pdo->prepare("UPDATE users SET points = points + 10 WHERE id = ?")->execute([$userId]);
+    // Make sure the reporter exists as a user.
+    // Points and snack credits are awarded when the admin APPROVES this report.
+    find_or_create_user($pdo, $reporterName, $reporterEmail);
 
-    // --- Re-check this new found item against existing open lost reports ---
-    $lostStmt = $pdo->query("SELECT id FROM items WHERE report_type = 'lost' AND status IN ('open','matched')");
-    foreach ($lostStmt->fetchAll(PDO::FETCH_COLUMN) as $lostId) {
-        generate_matches($pdo, (int) $lostId);
-    }
+    // The report is saved as 'pending'. Matching only starts once the admin approves it.
 
-    $donateAfter = date('Y-m-d', strtotime($eventDate . ' +7 days'));
+    $donateAfter = date('Y-m-d', strtotime('+30 days'));
 
     echo json_encode([
         'success'      => true,
         'item_id'      => $itemId,
         'ticket_code'  => $ticketCode,
         'donate_after' => $donateAfter,
+        'window_hours' => 720,
+        'approval'     => 'pending',
     ]);
 
 } catch (PDOException $e) {

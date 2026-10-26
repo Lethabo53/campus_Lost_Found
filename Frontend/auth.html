@@ -136,5 +136,31 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
 // If already signed in, just bounce home.
 api('me.php').then(({ user }) => { if (user) redirectAfterAuth(); }).catch(() => {});
 </script>
+<script>
+/* Show / hide password toggle for every password box on the page */
+(function () {
+    document.querySelectorAll('input[type="password"]').forEach(function (input) {
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative; display:block; width:100%;';
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+        input.style.width = '100%';
+        input.style.paddingRight = '70px';
+        input.style.boxSizing = 'border-box';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Show';
+        btn.setAttribute('aria-label', 'Show password');
+        btn.style.cssText = 'position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font:inherit; font-size:0.85rem; font-weight:600; text-decoration:underline; cursor:pointer; padding:4px 6px;';
+        btn.addEventListener('click', function () {
+            var show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.textContent = show ? 'Hide' : 'Show';
+            btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        });
+        wrap.appendChild(btn);
+    });
+})();
+</script>
 </body>
 </html>

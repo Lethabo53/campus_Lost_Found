@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/db.php';
+date_default_timezone_set('Africa/Johannesburg');
 require_once __DIR__ . '/matches.php';
 
 header('Content-Type: application/json');
@@ -10,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_login($pdo);
+$user = require_login($pdo);
 
 $title        = clean($_POST['title'] ?? '');
 $category     = clean($_POST['category'] ?? '');
@@ -25,16 +26,41 @@ $urgent       = ($_POST['urgent'] ?? '0') === '1' ? 1 : 0;
 $latitude     = ($_POST['latitude'] ?? '') !== '' && $_POST['latitude'] !== 'null' ? (float) $_POST['latitude'] : null;
 $longitude    = ($_POST['longitude'] ?? '') !== '' && $_POST['longitude'] !== 'null' ? (float) $_POST['longitude'] : null;
 
+// Always use the signed-in account's identity (a person cannot report as someone else)
+$reporterName  = $user['full_name'];
+$reporterEmail = strtolower($user['email']);
+
 if ($title === '' || $category === '' || $description === '' || $eventDate === ''
-    || $locationName === '' || $reporterName === '' || $reporterEmail === '') {
+    || $reporterName === '' || $reporterEmail === '') {
     http_response_code(400);
     echo json_encode(['error' => 'All required fields must be filled']);
     exit;
 }
 
-if ($eventDate !== date('Y-m-d')) {
+// Any campus location is allowed. The five hotspots below are tracked on the dashboard,
+// so we tidy up the spelling/capitalisation when someone types one of them.
+$hotspots = ['PC Lab 1', 'PC Lab 2', 'PC Lab 3', 'Cafeteria', 'Library'];
+foreach ($hotspots as $spot) {
+    if (strcasecmp($locationName, $spot) === 0) {
+        $locationName = $spot;
+        break;
+    }
+}
+if (mb_strlen($locationName) > 255) {
     http_response_code(422);
-    echo json_encode(['error' => "Only the present date is valid — please select today's date."]);
+    echo json_encode(['error' => 'Location is too long (maximum 255 characters).']);
+    exit;
+}
+
+$parsedDate = DateTime::createFromFormat('Y-m-d', $eventDate);
+if (!$parsedDate || $parsedDate->format('Y-m-d') !== $eventDate) {
+    http_response_code(422);
+    echo json_encode(['error' => 'Please enter a valid date.']);
+    exit;
+}
+if ($eventDate > date('Y-m-d')) {
+    http_response_code(422);
+    echo json_encode(['error' => 'You cannot choose a future date. Please select today or an earlier date.']);
     exit;
 }
 
@@ -121,13 +147,12 @@ try {
     // Make sure the reporter exists as a user (no points for reporting lost items).
     find_or_create_user($pdo, $reporterName, $reporterEmail);
 
-    // --- Generate matches against existing found items right away ---
-    generate_matches($pdo, $itemId);
-
+    // The report is saved as 'pending'. Matching only starts once the admin approves it.
     echo json_encode([
         'success'     => true,
         'item_id'     => $itemId,
         'ticket_code' => $ticketCode,
+        'approval'    => 'pending',
     ]);
 
 } catch (PDOException $e) {

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages — Campus Lost &amp; Found</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.msg-layout { display:grid; grid-template-columns:300px 1fr; gap:18px; align-items:start; }
+.thread-list { display:flex; flex-direction:column; gap:8px; }
+.thread { border:1px solid var(--line); background:var(--paper-raised); border-radius:10px; padding:10px 12px; cursor:pointer; text-align:left; font:inherit; color:var(--ink); }
+.thread.active { border-color:var(--sage); box-shadow:0 0 0 2px var(--sage) inset; }
+.thread b { display:block; font-size:.92rem; }
+.thread .small { display:block; margin-top:2px; }
+.thread .dot { display:inline-block; min-width:18px; padding:0 6px; border-radius:999px; background:var(--clay); color:#fff; font-size:.72rem; line-height:18px; text-align:center; margin-left:6px; }
+.chat-box { display:flex; flex-direction:column; gap:10px; max-height:420px; overflow-y:auto; padding:6px 2px 12px; }
+.bubble { max-width:80%; padding:9px 13px; border-radius:14px; font-size:.93rem; line-height:1.45; white-space:pre-wrap; word-wrap:break-word; }
+.bubble .when { display:block; font-size:.7rem; opacity:.7; margin-top:4px; }
+.bubble.me { align-self:flex-end; background:var(--sage); color:#fff; border-bottom-right-radius:4px; }
+.bubble.them { align-self:flex-start; background:var(--paper); border:1px solid var(--line); border-bottom-left-radius:4px; }
+.quick { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+.quick button { border:1px solid var(--line); background:var(--paper-raised); border-radius:999px; padding:5px 11px; font:inherit; font-size:.82rem; cursor:pointer; color:var(--ink); }
+@media (max-width:760px) { .msg-layout { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="home.html"><span class="brand-mark">L&amp;F</span> Campus Lost &amp; Found</a>
+        <nav class="nav-links">
+            <a href="home.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="rewards.html">My Rewards</a>
+            <a href="admin.html">Dashboard</a>
+            <a href="donation.html">Donations</a>
+            <a href="logout.php" id="nav-auth" class="nav-auth-link">Sign out</a>
+        </nav>
+    </div>
+</header>
+
+<section class="section">
+    <div class="wrap">
+        <span class="eyebrow">Student ↔ Admin</span>
+        <h1>My messages</h1>
+        <p class="muted">Write to the campus admin about an item: say it is yours, ask how to collect it, or ask anything else. Only you and the admin can read these messages.</p>
+
+        <div class="msg-layout" style="margin-top:18px;">
+            <div>
+                <button class="btn btn-sage" id="new-general" type="button" style="width:100%; margin-bottom:10px;">+ New message to admin</button>
+                <div class="thread-list" id="thread-list"><p class="muted small">Loading…</p></div>
+            </div>
+            <div class="card" id="chat-card">
+                <h3 class="mt-0" id="chat-title">Choose a conversation</h3>
+                <p class="small muted" id="chat-sub">Pick one on the left, or press “New message to admin”. To write about a particular item, open it in Browse and press “Message the admin”.</p>
+                <div class="chat-box" id="chat-box"></div>
+                <form id="chat-form" style="display:none;">
+                    <div class="quick" id="quick"></div>
+                    <div class="field"><label for="chat-body">Your message</label>
+                        <textarea id="chat-body" rows="3" maxlength="1500" required></textarea></div>
+                    <div id="chat-error" class="small" style="color:var(--danger); display:none; margin-bottom:10px;"></div>
+                    <button class="btn btn-sage" type="submit">Send</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
+
+<script src="js/app.js?v=4"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+let me = null, isAdmin = false;
+let current = null;   // { student_id, item_id, title }
+let pollTimer = null;
+
+const QUICK = [
+    'I think this item is mine. How do I collect it?',
+    'I answered the security questions. When can I come to the office?',
+    'I found an item and want to hand it in.',
+    'Can I change the details of my report?'
+];
+
+function fmt(ts) { return new Date(ts.replace(' ', 'T')).toLocaleString([], { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }); }
+
+async function loadThreads() {
+    const data = await api('messages.php?action=' + (isAdmin ? 'inbox' : 'threads'));
+    const box = $('thread-list');
+    if (!data.threads.length) { box.innerHTML = '<p class="muted small">No conversations yet.</p>'; return data.threads; }
+    box.innerHTML = data.threads.map(t => {
+        const label = t.item_id ? `${escapeHtml(t.ticket_code || '')} · ${escapeHtml(t.item_title || 'Item')}` : 'General question';
+        const active = current && current.item_id == t.item_id && (!isAdmin || current.student_id == t.student_id);
+        return `<button class="thread ${active ? 'active' : ''}" data-s="${t.student_id}" data-i="${t.item_id}" data-t="${escapeHtml(label)}">
+            <b>${label}${t.unread ? `<span class="dot">${t.unread}</span>` : ''}</b>
+            <span class="small muted">${isAdmin ? escapeHtml(t.student_name) + ' — ' : ''}${escapeHtml(t.last_body)}</span></button>`;
+    }).join('');
+    box.querySelectorAll('.thread').forEach(b => b.addEventListener('click', () =>
+        openThread(+b.dataset.s, +b.dataset.i, b.dataset.t)));
+    return data.threads;
+}
+
+async function openThread(studentId, itemId, title) {
+    current = { student_id: studentId, item_id: itemId, title };
+    const q = `messages.php?action=thread&item_id=${itemId}` + (isAdmin ? `&student_id=${studentId}` : '');
+    const d = await api(q);
+    if (d.item && !title) current.title = `${d.item.ticket_code} · ${d.item.title}`;
+    $('chat-title').textContent = current.title || (itemId ? 'About an item' : 'General question');
+    $('chat-sub').textContent = isAdmin && d.student ? `${d.student.full_name} (${d.student.email})` : 'You are writing to the campus admin.';
+    $('chat-box').innerHTML = d.messages.length ? d.messages.map(m => {
+        const mine = (m.sender === 'admin') === isAdmin;
+        return `<div class="bubble ${mine ? 'me' : 'them'}">${escapeHtml(m.body)}<span class="when">${mine ? 'You' : (m.sender === 'admin' ? 'Admin' : 'Student')} · ${fmt(m.created_at)}</span></div>`;
+    }).join('') : '<p class="muted small">No messages yet — write the first one below.</p>';
+    $('chat-box').scrollTop = 1e6;
+    $('chat-form').style.display = 'block';
+    $('quick').innerHTML = isAdmin ? '' : QUICK.map(t => `<button type="button">${escapeHtml(t)}</button>`).join('');
+    $('quick').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { $('chat-body').value = b.textContent; $('chat-body').focus(); }));
+    loadThreads();
+    if (typeof refreshBadge === 'function') refreshBadge();
+}
+
+$('chat-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('chat-error'); err.style.display = 'none';
+    try {
+        await api('messages.php', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: current.item_id, student_id: current.student_id, body: $('chat-body').value }) });
+        $('chat-body').value = '';
+        openThread(current.student_id, current.item_id, current.title);
+    } catch (ex) { err.textContent = ex.message || 'Could not send.'; err.style.display = 'block'; }
+});
+
+$('new-general').addEventListener('click', () => openThread(me.id, 0, 'General question'));
+
+(async function init() {
+    try {
+        const r = await api('me.php');
+        if (!r.user) { location.href = 'auth.html?redirect=' + encodeURIComponent(location.pathname + location.search); return; }
+        me = r.user; isAdmin = me.role === 'admin';
+        if (isAdmin) { location.href = 'admin-console.html'; return; }
+        const threads = await loadThreads();
+        if (params.has('item')) {
+            const id = +params.get('item');
+            const t = threads.find(x => +x.item_id === id);
+            openThread(me.id, id, t ? `${t.ticket_code} · ${t.item_title}` : '');
+        } else if (threads.length) {
+            openThread(me.id, +threads[0].item_id, threads[0].item_id ? `${threads[0].ticket_code} · ${threads[0].item_title}` : 'General question');
+        }
+        pollTimer = setInterval(() => { if (current) openThread(current.student_id, current.item_id, current.title); }, 20000);
+    } catch (e) { $('thread-list').innerHTML = '<p class="muted small">Could not load messages.</p>'; }
+})();
+</script>
+</body>
+</html>

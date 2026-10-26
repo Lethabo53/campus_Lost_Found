@@ -37,9 +37,10 @@
             <a href="report-lost.html">Report Lost</a>
             <a href="report-found.html">Report Found</a>
             <a href="browse.html">Browse</a>
+            <a href="rewards.html">My Rewards</a>
             <a href="admin.html" class="active">Dashboard</a>
 			<a href="donation.html">Donations</a>
-            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign out</a>
+            <a href="logout.php" id="nav-auth" class="nav-auth-link">Sign out</a>
         </nav>
     </div>
 </header>
@@ -47,7 +48,8 @@
 <section class="section">
     <div class="wrap">
         <span class="eyebrow">Student Affairs · Internal view</span>
-        <h1>Admin dashboard</h1>
+        <h1>Campus dashboard</h1>
+        <p id="admin-banner" class="small" style="display:none;"><a class="btn btn-sage" href="admin-console.html">Open the admin console →</a></p>
         <p>Recovery performance, campus hotspots, and the Good Samaritan community — generated live by the Python analytics engine.</p>
 
         <div class="stat-grid" id="stat-grid" style="margin-top:20px;">
@@ -70,12 +72,12 @@
             </div>
         </div>
 
-        <div class="card" style="margin-top:24px;">
+        <div class="card" id="donation-card" style="margin-top:24px;">
             <div style="display:flex; justify-content:space-between; align-items:baseline;">
                 <h3 class="mt-0">📦 Ready for donation</h3>
                 <span class="small muted" id="donation-count"></span>
             </div>
-            <p class="small muted" style="margin-top:-6px;">Found items past their 7-day unclaimed window — send to the campus charity drive.</p>
+            <p class="small muted" style="margin-top:-6px;">Found items past their 30-day unclaimed window — send to the campus charity drive.</p>
             <div id="donation-queue"><p class="muted small">Loading…</p></div>
         </div>
 
@@ -84,7 +86,7 @@
             <div id="category-bars"></div>
         </div>
 
-        <div class="card" style="margin-top:24px;">
+        <div class="card" id="open-items-card" style="margin-top:24px;">
             <div style="display:flex; justify-content:space-between; align-items:baseline;">
                 <h3 class="mt-0">Open &amp; matched items — quick actions</h3>
                 <button class="btn btn-outline" id="refresh-btn">Refresh</button>
@@ -96,7 +98,7 @@
 
 <footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
 
-<script src="js/app.js"></script>
+<script src="js/app.js?v=3"></script>
 <script>
 async function loadStats() {
     try {
@@ -187,7 +189,7 @@ async function loadDonationQueue() {
         const { items } = await api('browse.php?type=found&sort=newest');
         const today = new Date(); today.setHours(0, 0, 0, 0);
         const queue = items
-            .filter(i => (i.status === 'open' || i.status === 'matched') && i.donate_after && new Date(i.donate_after + 'T00:00:00') <= today)
+            .filter(i => (i.status === 'open' || i.status === 'matched') && i.seconds_left === 0)
             .sort((a, b) => new Date(a.donate_after) - new Date(b.donate_after));
 
         document.getElementById('donation-count').textContent = queue.length ? `${queue.length} item${queue.length === 1 ? '' : 's'}` : '';
@@ -208,7 +210,7 @@ async function loadDonationQueue() {
                         </td>
                     </tr>`).join('')}
                 </tbody>
-            </table>` : '<p class="muted small">Nothing overdue — every unclaimed found item is still inside its 7-day window. 🎉</p>';
+            </table>` : '<p class="muted small">Nothing overdue — every unclaimed found item is still inside its 30-day window. 🎉</p>';
     } catch (e) {
         document.getElementById('donation-queue').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`;
     }
@@ -225,8 +227,21 @@ async function adminAction(itemId, action) {
     } catch (e) { toast('Error: ' + e.message); }
 }
 
-document.getElementById('refresh-btn').addEventListener('click', () => { loadStats(); loadOpenItems(); loadLeaderboard(); loadDonationQueue(); });
-loadStats(); loadLeaderboard(); loadOpenItems(); loadDonationQueue();
+// Everyone sees the statistics. Only the admin sees the action cards (reunite / donate).
+(async function init() {
+    let isAdmin = false;
+    try { const me = await api('me.php'); isAdmin = !!(me.user && me.user.role === 'admin'); } catch (e) {}
+    if (isAdmin) {
+        document.getElementById('admin-banner').style.display = 'block';
+        document.getElementById('refresh-btn').addEventListener('click', () => { loadStats(); loadOpenItems(); loadLeaderboard(); loadDonationQueue(); });
+        loadOpenItems(); loadDonationQueue();
+    } else {
+        document.getElementById('donation-card').remove();
+        document.getElementById('open-items-card').remove();
+    }
+    loadStats(); loadLeaderboard();
+})();
 </script>
+<script src="js/chatbot.js"></script>
 </body>
 </html>

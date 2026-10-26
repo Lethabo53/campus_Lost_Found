@@ -253,9 +253,10 @@
             <a href="report-lost.html">Report Lost</a>
             <a href="report-found.html">Report Found</a>
             <a href="browse.html">Browse</a>
+            <a href="rewards.html">My Rewards</a>
             <a href="admin.html">Dashboard</a>
             <a href="donation.html" class="active">Donations</a>
-            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign in</a>
+            <a href="logout.php" id="nav-auth" class="nav-auth-link">Sign out</a>
         </nav>
 
     </div>
@@ -352,7 +353,7 @@
                     <h3>We wait</h3>
                     <p class="small muted">
                         Found items stay in the Lost &amp; Found system during
-                        the seven-day claim window.
+                        the 30-day claim window.
                     </p>
                 </div>
 
@@ -387,7 +388,7 @@
     </div>
 </footer>
 
-<script src="js/app.js"></script>
+<script src="js/app.js?v=3"></script>
 
 <script>
 
@@ -402,6 +403,9 @@ async function loadDonations() {
 
     try {
 
+        const me = await api('me.php');
+        window.IS_ADMIN = !!(me.user && me.user.role === 'admin');
+
         const result = await api('browse.php?type=found&sort=newest');
 
         donationItems = result.items || [];
@@ -412,8 +416,7 @@ async function loadDonations() {
         const queue = donationItems
             .filter(item =>
                 (item.status === 'open' || item.status === 'matched') &&
-                item.donate_after &&
-                new Date(item.donate_after + 'T00:00:00') <= today
+                item.seconds_left === 0
             )
             .sort((a, b) =>
                 new Date(a.donate_after) -
@@ -659,12 +662,12 @@ function renderDonations(items) {
                                 ${overdue}d overdue
                             </span>
 
-                            <button
+                            ${window.IS_ADMIN ? `<button
                                 class="btn btn-clay"
                                 onclick="donateItem(${item.id})"
                             >
                                 ♥ Send to charity
-                            </button>
+                            </button>` : '<span class="small muted">Only the admin can send items to charity</span>'}
 
                         </div>
 
@@ -708,8 +711,7 @@ document.querySelectorAll('.filter-btn')
             let queue = donationItems.filter(item =>
                 (item.status === 'open' ||
                  item.status === 'matched') &&
-                item.donate_after &&
-                new Date(item.donate_after + 'T00:00:00') <= today
+                item.seconds_left === 0
             );
 
 
@@ -781,5 +783,6 @@ loadDonations();
 
 </script>
 
+<script src="js/chatbot.js"></script>
 </body>
 </html>

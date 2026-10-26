@@ -689,6 +689,7 @@ function generate_matches(
              FROM items
              WHERE report_type = 'found'
              AND status IN ('open','matched')
+             AND approval_status = 'approved'
              ORDER BY created_at DESC
              LIMIT 300"
         );

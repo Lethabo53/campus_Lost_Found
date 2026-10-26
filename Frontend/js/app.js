@@ -71,6 +71,24 @@ async function initAuthNav() {
             authLink.textContent = 'Sign out';
             authLink.href = 'logout.php';
             authLink.onclick = null;
+
+            // Admins get an extra link to the admin console
+            if (user.role === 'admin' && !document.getElementById('nav-admin')) {
+                const here = location.pathname.endsWith('admin-console.html');
+                authLink.insertAdjacentHTML('beforebegin',
+                    '<a href="admin-console.html" id="nav-admin"' + (here ? ' class="active"' : '') + '>Admin console</a>');
+            }
+            // Students get a Messages link (to write to the admin) with an unread badge
+            if (user.role !== 'admin' && !document.getElementById('nav-messages')) {
+                const here = location.pathname.endsWith('messages.html');
+                authLink.insertAdjacentHTML('beforebegin',
+                    '<a href="messages.html" id="nav-messages"' + (here ? ' class="active"' : '') + '>Messages <span id="nav-msg-badge" class="msg-badge" style="display:none;"></span></a>');
+                if (!document.getElementById('msg-badge-style')) {
+                    document.head.insertAdjacentHTML('beforeend',
+                        '<style id="msg-badge-style">.msg-badge{display:inline-block;min-width:18px;padding:0 6px;border-radius:999px;background:#c0562f;color:#fff;font-size:.72rem;line-height:18px;text-align:center;margin-left:4px}</style>');
+                }
+                refreshBadge();
+            }
         } else {
             authLink.textContent = 'Sign in';
             authLink.href = 'auth.html';
@@ -79,6 +97,17 @@ async function initAuthNav() {
     } catch (e) {
         // Session check failed silently — nav just keeps its default "Sign in" state.
     }
+}
+
+// Unread admin replies shown on the Messages nav link
+async function refreshBadge() {
+    const el = document.getElementById('nav-msg-badge');
+    if (!el) return;
+    try {
+        const { unread } = await api('messages.php?action=unread');
+        el.textContent = unread;
+        el.style.display = unread ? 'inline-block' : 'none';
+    } catch (e) { /* ignore */ }
 }
 
 // If this page has a reporter name/email field, prefill it for a signed-in user.
@@ -115,6 +144,19 @@ function ticketCardHtml(item) {
         ? `<img src="${escapeHtml(item.photo)}" alt="${escapeHtml(item.title)}" class="ticket-photo ${photoClearClass}">`
         : '';
 
+    // Reports the admin has not approved yet (only the reporter and the admin can see these)
+    let approvalTag = '';
+    if (item.approval_status === 'pending') approvalTag = '<span class="ticket-tag tag-urgent">Waiting for admin approval</span>';
+    if (item.approval_status === 'rejected') approvalTag = '<span class="ticket-tag tag-urgent">Rejected</span>';
+
+    // Found items show how many hours are left in the 30-day claim window
+    let countdownHtml = '';
+    if (!isLost && (item.status === 'open' || item.status === 'matched') && item.seconds_left !== undefined) {
+        countdownHtml = item.seconds_left > 0
+            ? `<span>⏳ ${item.hours_left}h left to claim</span>`
+            : '<span>⏳ Claim window ended</span>';
+    }
+
     return `
         <a class="ticket ${isLost ? 'is-lost' : ''}" href="item-detail.html?id=${item.id}">
             <div class="ticket-stub"></div>
@@ -122,7 +164,7 @@ function ticketCardHtml(item) {
                 <div class="ticket-top">
                     <span class="ticket-code">${escapeHtml(item.ticket_code)}</span>
                     <span>
-                        <span class="ticket-tag ${tagClass}">${tagLabel}</span>${urgentTag}
+                        <span class="ticket-tag ${tagClass}">${tagLabel}</span>${urgentTag}${approvalTag}
                     </span>
                 </div>
                 <h3 class="ticket-title">${escapeHtml(item.title)}</h3>
@@ -130,6 +172,7 @@ function ticketCardHtml(item) {
                     <span>📍 ${escapeHtml(item.location_name)}</span>
                     <span>📅 ${escapeHtml(item.event_date)}</span>
                     <span>${escapeHtml(item.category)}</span>
+                    ${countdownHtml}
                 </div>
                 ${photoHtml}
             </div>

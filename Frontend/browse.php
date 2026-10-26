@@ -3,7 +3,7 @@ require_once __DIR__ . '/db.php';
 
 header('Content-Type: application/json');
 
-require_login($pdo);
+$user = require_login($pdo);
 
 $type     = trim($_GET['type'] ?? '');
 $category = trim($_GET['category'] ?? '');
@@ -12,6 +12,15 @@ $sort     = $_GET['sort'] ?? 'newest';
 
 $where  = [];
 $params = [];
+
+// Students only see items the admin has approved.
+// "My reports" (mine=1) shows the signed-in person's own reports in every state (pending, approved, rejected).
+if (($_GET['mine'] ?? '') === '1') {
+    $where[]  = 'LOWER(i.reporter_email) = ?';
+    $params[] = strtolower($user['email']);
+} else {
+    $where[] = "i.approval_status = 'approved'";
+}
 
 if ($type === 'lost' || $type === 'found') {
     $where[] = 'i.report_type = ?';
@@ -52,7 +61,8 @@ try {
         SELECT
             i.*,
             p.file_path AS photo,
-            DATE_ADD(i.event_date, INTERVAL 7 DAY) AS donate_after
+            DATE(DATE_ADD(i.created_at, INTERVAL 30 DAY)) AS donate_after,
+            GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), DATE_ADD(i.created_at, INTERVAL 30 DAY))) AS seconds_left
         FROM items i
         LEFT JOIN (
             SELECT item_id, MIN(id) AS photo_id
@@ -70,6 +80,10 @@ try {
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($items as &$row) {
+        // 30-day claim window counted from the moment the item was inserted
+        $row['seconds_left'] = (int) $row['seconds_left'];
+        $row['hours_left']   = (int) ceil($row['seconds_left'] / 3600);
+
         unset($row['security_answer_1']);
         unset($row['security_answer_2']);
 
@@ -81,9 +95,9 @@ try {
     unset($row);
 
     $counters = [
-        'lost'     => (int) $pdo->query("SELECT COUNT(*) FROM items WHERE report_type = 'lost'")->fetchColumn(),
-        'found'    => (int) $pdo->query("SELECT COUNT(*) FROM items WHERE report_type = 'found'")->fetchColumn(),
-        'reunited' => (int) $pdo->query("SELECT COUNT(*) FROM items WHERE status = 'reunited'")->fetchColumn(),
+        'lost'     => (int) $pdo->query("SELECT COUNT(*) FROM items WHERE report_type = 'lost' AND approval_status = 'approved'")->fetchColumn(),
+        'found'    => (int) $pdo->query("SELECT COUNT(*) FROM items WHERE report_type = 'found' AND approval_status = 'approved'")->fetchColumn(),
+        'reunited' => (int) $pdo->query("SELECT COUNT(*) FROM items WHERE status = 'reunited' AND approval_status = 'approved'")->fetchColumn(),
     ];
 
     echo json_encode(['items' => $items, 'counters' => $counters]);

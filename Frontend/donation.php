@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/db.php';
 
-require_login($pdo);
+$user = require_login($pdo);
 
 $method =
     $_SERVER['REQUEST_METHOD'];
@@ -22,15 +22,12 @@ if ($method === 'GET') {
                 ON d.item_id = i.id
              WHERE
                 i.report_type = 'found'
+                AND i.approval_status = 'approved'
                 AND i.status IN (
                     'open',
                     'matched'
                 )
-                AND i.event_date <=
-                    DATE_SUB(
-                        CURDATE(),
-                        INTERVAL 7 DAY
-                    )
+                AND i.created_at <= DATE_SUB(NOW(), INTERVAL 30 DAY)
              ORDER BY
                 i.event_date ASC"
         );
@@ -51,6 +48,9 @@ if ($method === 'GET') {
 
 
 if ($method === 'POST') {
+
+    // Only the admin can send an item to charity.
+    require_admin($pdo);
 
     $data =
         request_json();
