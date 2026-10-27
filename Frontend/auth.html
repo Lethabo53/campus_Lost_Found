@@ -72,6 +72,8 @@
     </div>
 </section>
 
+<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
+
 <script src="js/app.js?v=3"></script>
 <script>
 function showPanel(which) {
@@ -104,8 +106,191 @@ document.getElementById('signin-form').addEventListener('submit', async (e) => {
         toast('Signed in');
         redirectAfterAuth();
     } catch (err) {
+        errEl.innerHTML = escapeHtml(err.message) +
+            '<br>If your account was removed or you forgot your password: ' +
+            '<a href="forgot-password.html" style="text-decoration:underline; font-weight:600;">reset your password</a> or ' +
+            '<a href="#" id="signin-to-signup" style="text-decoration:underline; font-weight:600;">create your account again</a>.';
+        errEl.style.display = 'block';
+        const toSignup = document.getElementById('signin-to-signup');
+        if (toSignup) toSignup.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            document.getElementById('signup-email').value = document.getElementById('signin-email').value;
+            showPanel('signup');
+        });
+    }
+});
+
+document.getElementById('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('signup-error');
+    errEl.style.display = 'none';
+    try {
+        await api('signup.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                full_name: document.getElementById('signup-name').value,
+                email: document.getElementById('signup-email').value,
+                password: document.getElementById('signup-password').value
+            })
+        });
+        toast('Account created');
+        redirectAfterAuth();
+    } catch (err) {
         errEl.textContent = err.message;
         errEl.style.display = 'block';
+    }
+});
+
+// If already signed in, just bounce home.
+api('me.php').then(({ user }) => { if (user) redirectAfterAuth(); }).catch(() => {});
+</script>
+<script>
+/* Show / hide password toggle for every password box on the page */
+(function () {
+    document.querySelectorAll('input[type="password"]').forEach(function (input) {
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative; display:block; width:100%;';
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+        input.style.width = '100%';
+        input.style.paddingRight = '70px';
+        input.style.boxSizing = 'border-box';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Show';
+        btn.setAttribute('aria-label', 'Show password');
+        btn.style.cssText = 'position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font:inherit; font-size:0.85rem; font-weight:600; text-decoration:underline; cursor:pointer; padding:4px 6px;';
+        btn.addEventListener('click', function () {
+            var show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.textContent = show ? 'Hide' : 'Show';
+            btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        });
+        wrap.appendChild(btn);
+    });
+})();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Campus Lost &amp; Found</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="index.html"><span class="brand-mark">L&amp;F</span> Campus Lost &amp; Found</a>
+        <nav class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="report-lost.html">Report Lost</a>
+            <a href="report-found.html">Report Found</a>
+            <a href="browse.html">Browse</a>
+            <a href="admin.html">Dashboard</a>
+            <a href="donation.html">Donations</a>
+            <a href="auth.html" id="nav-auth" class="nav-auth-link">Sign in</a>
+        </nav>
+    </div>
+</header>
+
+<section class="section" style="max-width:480px; margin:0 auto;">
+    <div class="wrap">
+        <div class="filters" style="border-bottom:none; padding-bottom:0; margin-bottom:22px;">
+            <button class="filter-toggle active" id="tab-signin" type="button">Sign in</button>
+            <button class="filter-toggle" id="tab-signup" type="button">Sign up</button>
+        </div>
+
+        <div class="card" id="panel-signin">
+            <h3 class="mt-0">Welcome back</h3>
+            <form id="signin-form">
+                <div class="field">
+                    <label for="signin-email">Email</label>
+                    <input type="email" id="signin-email" required>
+                </div>
+                <div class="field">
+                    <label for="signin-password">Password</label>
+                    <input type="password" id="signin-password" required>
+                    <a href="forgot-password.html" style="display:inline-block; margin-top:8px; font-weight:600; text-decoration:underline; cursor:pointer;">Forgot your password?</a>
+                </div>
+                <div id="signin-error" class="small" style="color:var(--danger); display:none; margin-bottom:12px;"></div>
+                <button class="btn btn-sage btn-block" type="submit">Sign in</button>
+            </form>
+        </div>
+
+        <div class="card" id="panel-signup" style="display:none;">
+            <h3 class="mt-0">Create an account</h3>
+            <p class="small">Signing up lets you track your reports and keep your Good Samaritan points.</p>
+            <form id="signup-form">
+                <div class="field">
+                    <label for="signup-name">Full name</label>
+                    <input type="text" id="signup-name" required>
+                </div>
+                <div class="field">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" required>
+                </div>
+                <div class="field">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" minlength="8" required>
+                    <span class="hint">At least 8 characters.</span>
+                </div>
+                <div id="signup-error" class="small" style="color:var(--danger); display:none; margin-bottom:12px;"></div>
+                <button class="btn btn-sage btn-block" type="submit">Create account</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
+
+<script src="js/app.js?v=3"></script>
+<script>
+function showPanel(which) {
+    document.getElementById('panel-signin').style.display = which === 'signin' ? 'block' : 'none';
+    document.getElementById('panel-signup').style.display = which === 'signup' ? 'block' : 'none';
+    document.getElementById('tab-signin').classList.toggle('active', which === 'signin');
+    document.getElementById('tab-signup').classList.toggle('active', which === 'signup');
+}
+document.getElementById('tab-signin').addEventListener('click', () => showPanel('signin'));
+document.getElementById('tab-signup').addEventListener('click', () => showPanel('signup'));
+
+function redirectAfterAuth() {
+    const params = new URLSearchParams(location.search);
+    location.href = params.get('redirect') || 'home.html';
+}
+
+document.getElementById('signin-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('signin-error');
+    errEl.style.display = 'none';
+    try {
+        await api('login.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: document.getElementById('signin-email').value,
+                password: document.getElementById('signin-password').value
+            })
+        });
+        toast('Signed in');
+        redirectAfterAuth();
+    } catch (err) {
+        errEl.innerHTML = escapeHtml(err.message) +
+            '<br>If your account was removed or you forgot your password: ' +
+            '<a href="forgot-password.html" style="text-decoration:underline; font-weight:600;">reset your password</a> or ' +
+            '<a href="#" id="signin-to-signup" style="text-decoration:underline; font-weight:600;">create your account again</a>.';
+        errEl.style.display = 'block';
+        const toSignup = document.getElementById('signin-to-signup');
+        if (toSignup) toSignup.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            document.getElementById('signup-email').value = document.getElementById('signin-email').value;
+            showPanel('signup');
+        });
     }
 });
 
