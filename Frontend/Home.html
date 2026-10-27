@@ -52,7 +52,7 @@
         <div>
             <span class="eyebrow">Serving the whole campus community</span>
             <h1>Lost something? Someone probably handed it in.</h1>
-            <p class="hero-sub">A digital claim-ticket counter for your campus, report an item in under a minute, get matched automatically, and verify claims before contact details are shared.</p>
+            <p class="hero-sub">A digital claim-ticket counter for your campus — report an item in under a minute, get matched automatically, and verify claims before contact details are shared.</p>
             <div class="search-bar">
                 <input type="text" id="home-search" placeholder="Search by item, e.g. &quot;blue backpack&quot;, &quot;student card&quot;…" aria-label="Search listings">
                 <button class="btn btn-sage" id="home-search-btn">Search</button>
@@ -92,7 +92,7 @@
         <div class="form-grid" style="margin-top:18px;">
             <div class="field full" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px;">
                 <div class="card"><h3>1. Report</h3><p>Log a lost or found item with a photo, category, and the exact campus spot — dropped as a pin on the map.</p></div>
-                <div class="card"><h3>2. Match</h3><p>A keyword-and-location matching engine quietly ranks likely pairs the moment a new report comes in.</p></div>
+                <div class="card"><h3>2. Match</h3><p>A keyword-and-description matching engine quietly ranks likely pairs the moment a new report comes in.</p></div>
                 <div class="card"><h3>3. Verify</h3><p>Claiming a found item requires answering two questions only the true owner would know — no contact details leak until verified.</p></div>
                 <div class="card"><h3>4. Reunite</h3><p>Verified claimants get the finder's contact details, and the finder earns Good Samaritan points on the leaderboard.</p></div>
             </div>
@@ -121,10 +121,23 @@ async function loadHome() {
             ? items.map(ticketCardHtml).join('')
             : '<p class="empty-state">No reports yet — be the first to log a lost or found item.</p>';
 
+        // Tell the student about reports the admin did not approve
+        try {
+            const mine = await api('browse.php?mine=1');
+            const rejected = mine.items.filter(i => i.approval_status === 'rejected');
+            if (rejected.length) {
+                document.getElementById('urgent-banner').insertAdjacentHTML('beforebegin', rejected.slice(0, 3).map(r => `
+                    <div class="countdown-strip" style="margin-bottom:10px;">
+                        <span><strong>Not approved:</strong> your report "${escapeHtml(r.title)}" — ${escapeHtml(r.rejection_reason || 'It did not meet the reporting guidelines.')}
+                        <a href="item-detail.html?id=${r.id}">Fix it</a></span>
+                    </div>`).join(''));
+            }
+        } catch (e) { /* not signed in or no reports */ }
+
         const urgent = data.items.find(i => i.urgent && i.status === 'open');
         if (urgent) {
             document.getElementById('urgent-banner').innerHTML = `
-                <div class="countdown-strip">⚠️ Urgent: <strong>${escapeHtml(urgent.title)}</strong> at ${escapeHtml(urgent.location_name)} —
+                <div class="countdown-strip">⚠️ Urgent: <strong>${escapeHtml(urgent.title)}</strong> —
                 <a href="item-detail.html?id=${urgent.id}">view details</a></div>`;
         }
     } catch (e) {

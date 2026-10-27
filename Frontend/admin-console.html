@@ -110,6 +110,9 @@ html:not([data-authed]) body { visibility: hidden; }
             <h2 class="mt-0">Verified claims</h2>
             <p class="small muted">These owners answered both security questions correctly. Contact both people, arrange the hand-over, then press <b>Handed over</b>. The finder then receives their reunion bonus. Contact details are only shown here, never to the other student.</p>
             <div id="claims-list"><p class="muted">Loading…</p></div>
+            <h2 style="margin-top:34px;">Completed hand-overs</h2>
+            <p class="small muted">Items already handed to their owners. The finder has received their reward.</p>
+            <div id="completed-list"><p class="muted">Loading…</p></div>
         </div>
 
         <!-- ================= DONATIONS ================= -->
@@ -177,8 +180,6 @@ html:not([data-authed]) body { visibility: hidden; }
     </div>
 </section>
 
-<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
-
 <script src="js/app.js?v=3"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -213,7 +214,7 @@ async function loadApprovals() {
                     </div>
                     <h3 style="margin:6px 0;">${escapeHtml(i.title)}</h3>
                     <div class="kv"><b>Category:</b> ${escapeHtml(i.category)} &nbsp; <b>Colour:</b> ${escapeHtml(i.color || '—')} &nbsp; <b>Brand/model:</b> ${escapeHtml(i.brand_model || '—')}</div>
-                    <div class="kv"><b>Where:</b> ${escapeHtml(i.location_name || "—")} &nbsp; <b>Date:</b> ${escapeHtml(i.event_date)}</div>
+                    <div class="kv"><b>Date:</b> ${escapeHtml(i.event_date)}</div>
                     <div class="kv"><b>Description:</b> ${escapeHtml(i.description)}</div>
                     <div class="kv"><b>Reported by:</b> ${escapeHtml(i.reporter_name)} — ${escapeHtml(i.reporter_email)}</div>
                     ${i.report_type === 'found' ? `
@@ -260,6 +261,20 @@ async function loadClaims() {
                 </div>
             </div>`).join('') : '<p class="muted">No claims waiting.</p>';
     } catch (e) { $('claims-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`; }
+}
+async function loadCompleted() {
+    try {
+        const { completed } = await api('admin_review.php?view=completed');
+        $('completed-list').innerHTML = completed.length ? `
+            <table class="report-table"><thead><tr><th>Ticket</th><th>Item</th><th>Handed to (owner)</th><th>Found by</th><th>Handed over</th></tr></thead>
+            <tbody>${completed.map(c => `<tr>
+                <td>${escapeHtml(c.ticket_code)}</td>
+                <td><a href="item-detail.html?id=${c.item_id}">${escapeHtml(c.title)}</a><br><span class="small muted">${escapeHtml(c.category)}</span></td>
+                <td>${escapeHtml(c.claimant_name)}<br><span class="small muted">${escapeHtml(c.claimant_email)}</span></td>
+                <td>${escapeHtml(c.finder_name)}<br><span class="small muted">${escapeHtml(c.finder_email)}</span></td>
+                <td>${escapeHtml(String(c.handed_over_at).slice(0, 16))}</td>
+            </tr>`).join('')}</tbody></table>` : '<p class="muted">No completed hand-overs yet.</p>';
+    } catch (e) { $('completed-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`; }
 }
 async function handedOver(itemId) {
     if (!confirm('Confirm the item was handed to its owner?')) return;
@@ -386,7 +401,7 @@ $('msg-form').addEventListener('submit', async (e) => {
     } catch (ex) { err.textContent = ex.message || 'Could not send.'; err.style.display = 'block'; }
 });
 
-function refreshAll() { loadApprovals(); loadClaims(); loadDonations(); loadCodes(); loadMessages(); }
+function refreshAll() { loadApprovals(); loadClaims(); loadCompleted(); loadDonations(); loadCodes(); loadMessages(); }
 setInterval(loadMessages, 30000);
 refreshAll();
 runReport();

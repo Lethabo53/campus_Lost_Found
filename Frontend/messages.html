@@ -109,7 +109,8 @@ async function openThread(studentId, itemId, title) {
     const d = await api(q);
     if (d.item && !title) current.title = `${d.item.ticket_code} · ${d.item.title}`;
     $('chat-title').textContent = current.title || (itemId ? 'About an item' : 'General question');
-    $('chat-sub').textContent = isAdmin && d.student ? `${d.student.full_name} (${d.student.email})` : 'You are writing to the campus admin.';
+    const who = isAdmin && d.student ? `${d.student.full_name} (${d.student.email})` : 'You are writing to the campus admin.';
+    $('chat-sub').innerHTML = escapeHtml(who) + (itemId ? ` &nbsp;·&nbsp; <a href="item-detail.html?id=${itemId}"><b>Open this report</b> (view or edit it)</a>` : '');
     $('chat-box').innerHTML = d.messages.length ? d.messages.map(m => {
         const mine = (m.sender === 'admin') === isAdmin;
         return `<div class="bubble ${mine ? 'me' : 'them'}">${escapeHtml(m.body)}<span class="when">${mine ? 'You' : (m.sender === 'admin' ? 'Admin' : 'Student')} · ${fmt(m.created_at)}</span></div>`;

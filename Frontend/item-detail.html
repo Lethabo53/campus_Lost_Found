@@ -76,7 +76,7 @@ function matchRowHtml(m) {
                 </div>
                 <h3 class="ticket-title">${escapeHtml(m.title)}</h3>
                 <div class="ticket-meta">
-                    <span>📍 ${escapeHtml(m.location_name)}</span>
+                    ${m.location_name ? `<span>📍 ${escapeHtml(m.location_name)}</span>` : ''}
                     <span>${escapeHtml(m.category)}</span>
                 </div>
             </div>
@@ -106,6 +106,78 @@ function claimFormHtml() {
     `;
 }
 
+
+function editCardHtml(item) {
+    const cats = ['ID/Card','Electronics','Bag','Clothing','Keys','Sports Gear','Books','Other'];
+    if (item.category && !cats.includes(item.category)) cats.push(item.category);
+    const isFound = item.report_type === 'found';
+    const v = (x) => escapeHtml(x == null ? '' : String(x));
+    const today = new Date(); const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    const note = item.is_admin
+        ? 'As admin you can edit any report, including the security questions.'
+        : (item.approval_status === 'rejected'
+            ? 'The admin rejected this report. Fix the details and save: it goes back to the admin for approval.'
+            : 'You can edit this report until the admin approves it. After approval it is locked.');
+    return `
+        <div class="card" style="margin-top:20px;" id="edit-card">
+            <h3 class="mt-0">Edit this report</h3>
+            <p class="small">${note}</p>
+            <button class="btn btn-outline" type="button" id="edit-toggle">Edit report</button>
+            <form id="edit-form" style="display:none; margin-top:16px;">
+                <div class="field"><label for="ed-title">Title</label><input id="ed-title" maxlength="200" required value="${v(item.title)}"></div>
+                <div class="form-grid">
+                    <div class="field"><label for="ed-category">Category</label>
+                        <select id="ed-category" required>${cats.map(c => `<option ${c === item.category ? 'selected' : ''}>${v(c)}</option>`).join('')}</select></div>
+                    <div class="field"><label for="ed-color">Colour</label><input id="ed-color" maxlength="100" value="${v(item.color)}"></div>
+                </div>
+                <div class="field"><label for="ed-description">Description</label><textarea id="ed-description" rows="4" required>${v(item.description)}</textarea></div>
+                <div class="form-grid">
+                    <div class="field"><label for="ed-brand">Brand / model <span class="hint">(optional)</span></label><input id="ed-brand" maxlength="150" value="${v(item.brand_model)}"></div>
+                    <div class="field"><label for="ed-date">${isFound ? 'Date found' : 'Date lost'}</label><input type="date" id="ed-date" max="${todayStr}" required value="${v(item.event_date)}"></div>
+                </div>
+                ${isFound ? `<div class="field"><label for="ed-condition">Condition <span class="hint">(optional)</span></label><input id="ed-condition" maxlength="255" value="${v(item.condition_notes)}"></div>` : ''}
+                ${(isFound && item.is_admin) ? `
+                    <div class="form-grid">
+                        <div class="field"><label for="ed-q1">Security question 1</label><input id="ed-q1" maxlength="255" required value="${v(item.security_question_1)}"></div>
+                        <div class="field"><label for="ed-a1">Expected answer 1</label><input id="ed-a1" maxlength="255" required value="${v(item.security_answer_1)}"></div>
+                        <div class="field"><label for="ed-q2">Security question 2</label><input id="ed-q2" maxlength="255" required value="${v(item.security_question_2)}"></div>
+                        <div class="field"><label for="ed-a2">Expected answer 2</label><input id="ed-a2" maxlength="255" required value="${v(item.security_answer_2)}"></div>
+                    </div>` : ''}
+                <div id="edit-error" class="small" style="color:var(--danger); display:none; margin-bottom:10px;"></div>
+                <button class="btn btn-sage" type="submit">Save changes</button>
+                <button class="btn btn-outline" type="button" id="edit-cancel">Cancel</button>
+            </form>
+        </div>`;
+}
+
+function wireEditCard(item) {
+    const form = document.getElementById('edit-form');
+    if (!form) return;
+    const toggle = document.getElementById('edit-toggle');
+    toggle.addEventListener('click', () => { form.style.display = 'block'; toggle.style.display = 'none'; });
+    document.getElementById('edit-cancel').addEventListener('click', () => { form.style.display = 'none'; toggle.style.display = 'inline-flex'; });
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const err = document.getElementById('edit-error'); err.style.display = 'none';
+        const val = (id) => { const el = document.getElementById(id); return el ? el.value : undefined; };
+        const body = {
+            item_id: item.id,
+            title: val('ed-title'), category: val('ed-category'), color: val('ed-color'),
+            description: val('ed-description'), brand_model: val('ed-brand'),
+            condition_notes: val('ed-condition') || '', event_date: val('ed-date')
+        };
+        if (document.getElementById('ed-q1')) {
+            body.security_question_1 = val('ed-q1'); body.security_answer_1 = val('ed-a1');
+            body.security_question_2 = val('ed-q2'); body.security_answer_2 = val('ed-a2');
+        }
+        try {
+            const res = await api('edit_item.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            toast(res.message || 'Saved');
+            setTimeout(() => location.reload(), 700);
+        } catch (ex) { err.textContent = ex.message || 'Could not save.'; err.style.display = 'block'; }
+    });
+}
+
 async function load() {
     const root = document.getElementById('item-root');
 
@@ -121,6 +193,7 @@ async function load() {
         const isFound = item.report_type === 'found';
         const canClaim = isFound && item.approval_status === 'approved' && !item.is_owner && (item.status === 'open' || item.status === 'matched');
         const showCountdown = isFound && item.approval_status === 'approved' && (item.status === 'open' || item.status === 'matched');
+        const canEdit = item.is_admin || (item.is_owner && (item.approval_status === 'pending' || item.approval_status === 'rejected'));
         const canCloseOwn = isLost && item.is_owner && (item.status === 'open' || item.status === 'matched');
 
         const photoClearClass = isLost ? 'is-clear' : '';
@@ -138,7 +211,7 @@ async function load() {
                     <span class="ticket-tag ${isLost ? 'tag-lost' : 'tag-found'}">${isLost ? '🔍 Lost' : '✅ Found'}</span>
                 </div>
                 <div class="ticket-meta" style="margin:10px 0 4px;">
-                    <span>📍 ${escapeHtml(item.location_name)}</span>
+                    ${item.location_name ? `<span>📍 ${escapeHtml(item.location_name)}</span>` : ''}
                     <span>📅 ${escapeHtml(item.event_date)}</span>
                     <span>${escapeHtml(item.category)}</span>
                     ${item.color ? `<span>Color: ${escapeHtml(item.color)}</span>` : ''}
@@ -159,8 +232,9 @@ async function load() {
             ${item.approval_status === 'rejected' ? `
                 <div class="card" style="margin-top:20px; border-color:var(--danger);">
                     <h3 class="mt-0">This report was not approved</h3>
-                    <p class="small">${escapeHtml(item.rejection_reason || 'It did not meet the reporting guidelines.')}</p>
-                    <a class="btn btn-outline" href="${item.report_type === 'lost' ? 'report-lost.html' : 'report-found.html'}">Submit a new report</a>
+                    <p class="small"><b>Reason from the admin:</b> ${escapeHtml(item.rejection_reason || 'It did not meet the reporting guidelines.')}</p>
+                    ${item.is_owner ? `<p class="small">Fix the details below and save. It will go back to the admin for approval.</p>
+                    <a class="btn btn-sage" href="#edit-card" onclick="var t=document.getElementById('edit-toggle'); if (t) t.click();">Edit and resubmit</a>` : ''}
                 </div>` : ''}
             ${item.is_admin ? `
                 <div class="card" style="margin-top:20px; border-color:var(--sage);">
@@ -196,6 +270,8 @@ async function load() {
                     <a class="btn btn-outline" href="messages.html?item=${item.id}">Message the admin</a>
                 </div>` : ''}
 
+            ${canEdit ? editCardHtml(item) : ''}
+
             ${canClaim ? claimFormHtml() : ''}
 
             ${isLost && matches && matches.length ? `
@@ -205,6 +281,8 @@ async function load() {
                 </div>
             ` : ''}
         `;
+
+        wireEditCard(item);
 
         if (showCountdown) {
             let remaining = item.seconds_left;

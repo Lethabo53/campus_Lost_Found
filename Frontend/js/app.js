@@ -147,7 +147,7 @@ function ticketCardHtml(item) {
     // Reports the admin has not approved yet (only the reporter and the admin can see these)
     let approvalTag = '';
     if (item.approval_status === 'pending') approvalTag = '<span class="ticket-tag tag-urgent">Waiting for admin approval</span>';
-    if (item.approval_status === 'rejected') approvalTag = '<span class="ticket-tag tag-urgent">Rejected</span>';
+    if (item.approval_status === 'rejected') approvalTag = '<span class="ticket-tag tag-urgent">Not approved</span>';
 
     // Found items show how many hours are left in the 30-day claim window
     let countdownHtml = '';
@@ -168,8 +168,9 @@ function ticketCardHtml(item) {
                     </span>
                 </div>
                 <h3 class="ticket-title">${escapeHtml(item.title)}</h3>
+                ${item.approval_status === 'rejected' ? `<p class="small" style="color:var(--danger); margin:0 0 6px;"><b>Not approved:</b> ${escapeHtml(item.rejection_reason || 'It did not meet the reporting guidelines.')}</p>` : ''}
                 <div class="ticket-meta">
-                    <span>📍 ${escapeHtml(item.location_name)}</span>
+                    ${item.location_name ? `<span>📍 ${escapeHtml(item.location_name)}</span>` : ''}
                     <span>📅 ${escapeHtml(item.event_date)}</span>
                     <span>${escapeHtml(item.category)}</span>
                     ${countdownHtml}

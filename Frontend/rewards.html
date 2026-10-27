@@ -78,8 +78,6 @@
     </div>
 </section>
 
-<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
-
 <script src="js/app.js?v=3"></script>
 <script>
 function statusPillClass(status) {
@@ -107,7 +105,7 @@ async function loadRewards() {
                         <td class="small muted">${escapeHtml(r.created_at)}</td>
                     </tr>`).join('')}
                 </tbody>
-            </table>` : '<p class="muted small">No redemptions yet — earn some credits first!</p>';
+            </table>` : '<p class="muted small">No redemptions yet, earn some credits first!</p>';
     } catch (e) {
         document.getElementById('balance-display').textContent = '—';
         document.getElementById('history-list').innerHTML = `<p class="empty-state">${escapeHtml(e.message)}</p>`;

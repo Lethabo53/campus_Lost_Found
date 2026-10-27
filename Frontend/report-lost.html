@@ -29,11 +29,6 @@
 <link rel="stylesheet" href="css/style.css">
 <style>
 
-/* =========================================================
-   CAMPUS LOST & FOUND — REPORT LOST
-   Same visual system as report-found.html
-   Styling only — functionality untouched
-========================================================= */
 
 :root {
     --bg: #eeece4;
@@ -75,10 +70,6 @@
         monospace;
 }
 
-
-/* =========================================================
-   PAGE
-========================================================= */
 
 body {
     background:
@@ -123,11 +114,6 @@ body::before {
 
     z-index: -1;
 }
-
-
-/* =========================================================
-   HEADER
-========================================================= */
 
 .topbar {
     background:
@@ -198,10 +184,6 @@ body::before {
     font-weight: 600;
 }
 
-
-/* =========================================================
-   PAGE INTRO
-========================================================= */
 
 .section {
     padding:
@@ -282,10 +264,6 @@ body::before {
 }
 
 
-/* =========================================================
-   FORM CARD
-========================================================= */
-
 #lost-form {
     position: relative;
 
@@ -351,11 +329,6 @@ body::before {
         rgba(77,98,79,.45);
 }
 
-
-/* =========================================================
-   FORM GRID
-========================================================= */
-
 .form-grid {
     position: relative;
 
@@ -385,10 +358,6 @@ body::before {
 }
 
 
-/* =========================================================
-   HINTS
-========================================================= */
-
 .hint {
     color: #89918f;
 
@@ -397,10 +366,6 @@ body::before {
     font-size: 11px;
 }
 
-
-/* =========================================================
-   INPUTS
-========================================================= */
 
 .field input,
 .field select,
@@ -486,10 +451,6 @@ body::before {
 }
 
 
-/* =========================================================
-   SELECT
-========================================================= */
-
 .field select {
     cursor: pointer;
 
@@ -519,18 +480,10 @@ body::before {
 }
 
 
-/* =========================================================
-   DATE INPUT
-========================================================= */
-
 .field input[type="date"] {
     color-scheme: light;
 }
 
-
-/* =========================================================
-   MAP
-========================================================= */
 
 #campus-map {
     height: 300px !important;
@@ -570,11 +523,6 @@ body::before {
     background:
         rgba(255,253,247,.94) !important;
 }
-
-
-/* =========================================================
-   URGENT CHECKBOX
-========================================================= */
 
 .checkbox-row {
     display: flex;
@@ -636,10 +584,6 @@ body::before {
         var(--ink-soft);
 }
 
-
-/* =========================================================
-   PHOTO UPLOAD SECTION
-========================================================= */
 
 .photo-upload-section {
     margin-top: 8px;
@@ -740,10 +684,6 @@ body::before {
 }
 
 
-/* =========================================================
-   SUBMIT BUTTON
-========================================================= */
-
 .btn {
     transition:
         transform .2s ease,
@@ -816,10 +756,6 @@ body::before {
 }
 
 
-/* =========================================================
-   RESULT PANEL
-========================================================= */
-
 #result-panel .card {
     padding:
         30px;
@@ -877,10 +813,6 @@ body::before {
 }
 
 
-/* =========================================================
-   FOOTER
-========================================================= */
-
 footer {
     padding:
         28px 0;
@@ -905,10 +837,6 @@ footer {
 }
 
 
-/* =========================================================
-   DESKTOP
-========================================================= */
-
 @media (min-width: 701px) {
 
     #lost-form .form-grid {
@@ -923,10 +851,6 @@ footer {
 
 }
 
-
-/* =========================================================
-   TABLET
-========================================================= */
 
 @media (max-width: 850px) {
 
@@ -949,10 +873,6 @@ footer {
 
 }
 
-
-/* =========================================================
-   MOBILE
-========================================================= */
 
 @media (max-width: 700px) {
 
@@ -1019,10 +939,6 @@ footer {
 }
 
 
-/* =========================================================
-   SMALL PHONES
-========================================================= */
-
 @media (max-width: 420px) {
 
     .section h1 {
@@ -1050,10 +966,6 @@ footer {
 
 }
 
-
-/* =========================================================
-   REDUCED MOTION
-========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
 
@@ -1126,7 +1038,6 @@ footer {
                     <span class="hint">Today or an earlier date. Future dates are not allowed.</span>
                 </div>
                 
-                <!-- Photo Upload Section -->
                 <div class="field full photo-upload-section">
                     <label>Photos <span class="hint">(optional but helps with identification)</span></label>
                     <div class="photo-upload-row">
@@ -1156,14 +1067,12 @@ footer {
     </div>
 </section>
 
-<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/app.js?v=3"></script>
 <script src="js/map.js"></script>
 <script>
 let picked = null;
-// Fill the reporter's name and email from the signed-in account
+
 function fillReporter() {
     api('me.php').then(({ user }) => {
         if (user) {
@@ -1176,21 +1085,21 @@ function fillReporter() {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Allow today and past dates only — future dates are blocked in the calendar
+  
     const todayStr = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
     const dateField = document.getElementById('event_date');
     dateField.max = todayStr;
     dateField.value = todayStr;
     fillReporter();
     
-    // Photo preview functionality
+   
     const photoInput = document.getElementById('photos');
     const photoPreview = document.getElementById('photo-preview');
     let selectedFiles = [];
     
     photoInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
-        selectedFiles = files.slice(0, 5); // Limit to 5 photos
+        selectedFiles = files.slice(0, 5); 
         
         photoPreview.innerHTML = '';
         

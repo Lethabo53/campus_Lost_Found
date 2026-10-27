@@ -38,6 +38,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         json_response(['claims' => $stmt->fetchAll()]);
     }
 
+    if ($view === 'completed') {
+        // Hand-overs the admin has already finished (item reunited with its owner)
+        $stmt = $pdo->query("
+            SELECT
+                c.id AS claim_id,
+                c.claimant_name,
+                c.claimant_email,
+                c.created_at AS claimed_at,
+                i.id AS item_id,
+                i.ticket_code,
+                i.title,
+                i.category,
+                i.reporter_name AS finder_name,
+                i.reporter_email AS finder_email,
+                i.updated_at AS handed_over_at
+            FROM claims c
+            JOIN items i ON i.id = c.item_id
+            WHERE c.status = 'approved' AND i.status = 'reunited'
+            ORDER BY i.updated_at DESC
+            LIMIT 200
+        ");
+        json_response(['completed' => $stmt->fetchAll()]);
+    }
+
     $stmt = $pdo->query("
         SELECT
             i.*,
@@ -121,6 +145,23 @@ if ($action === 'reject') {
 
     if ($upd->rowCount() === 0) {
         json_response(['error' => 'This report has already been reviewed.'], 422);
+    }
+
+    // Tell the student straight away: the reason lands in their Messages inbox (with an unread badge).
+    try {
+        $it = $pdo->prepare("SELECT i.title, i.ticket_code, u.id AS student_id
+                             FROM items i JOIN users u ON LOWER(u.email) = LOWER(i.reporter_email)
+                             WHERE i.id = ? LIMIT 1");
+        $it->execute([$itemId]);
+        if ($row = $it->fetch()) {
+            $body = "Your report \"{$row['title']}\" ({$row['ticket_code']}) was not approved.\n\nReason: $reason\n\n"
+                  . "You can open the report, press \"Edit report\", fix the details and save. It will go back to the admin for approval.";
+            $pdo->prepare("INSERT INTO messages (student_id, item_id, sender, body, read_by_student, read_by_admin)
+                           VALUES (?, ?, 'admin', ?, 0, 1)")
+                ->execute([$row['student_id'], $itemId, $body]);
+        }
+    } catch (Throwable $e) {
+        // The messages table may not exist yet; the rejection itself must still go through.
     }
 
     json_response(['success' => true, 'approval_status' => 'rejected']);

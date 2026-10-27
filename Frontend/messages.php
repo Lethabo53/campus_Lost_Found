@@ -1,19 +1,4 @@
 <?php
-/*
- * Message portal: students <-> campus admin.
- * A conversation ("thread") is one student + (optionally) one item.
- * item_id = 0 means a general question to the admin.
- *
- * STUDENT
- *   GET  messages.php?action=threads              my conversations
- *   GET  messages.php?action=thread&item_id=N     messages of one conversation (marks admin replies read)
- *   GET  messages.php?action=unread               number of unread admin replies
- *   POST {item_id, body}                          send a message to the admin
- * ADMIN
- *   GET  messages.php?action=inbox                every conversation, newest first
- *   GET  messages.php?action=thread&student_id=S&item_id=N
- *   POST {student_id, item_id, body}              reply
- */
 require_once __DIR__ . '/db.php';
 
 $me     = require_login($pdo);
@@ -49,13 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sender  = 'student';
         $row = fetch_item($pdo, $item);
         if ($item !== 0) {
-            // A student may write about an approved item, or about one of their own reports.
+            
             $own = $row && strtolower($row['reporter_email']) === strtolower($me['email']);
             if (!$row || (!$own && $row['approval_status'] !== 'approved')) {
                 json_response(['error' => 'That item was not found.'], 404);
             }
         }
-        // Light flood protection: max 20 messages per hour.
+        
         $c = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE student_id = ? AND sender = 'student' AND created_at > (NOW() - INTERVAL 1 HOUR)");
         $c->execute([$student]);
         if ((int) $c->fetchColumn() >= 20) json_response(['error' => 'You are sending messages too quickly. Please wait a little.'], 429);
@@ -67,8 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     json_response(['success' => true]);
 }
-
-/* ---------------- GET ---------------- */
 
 if ($action === 'unread') {
     if ($admin) {

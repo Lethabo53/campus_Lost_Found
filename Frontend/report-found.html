@@ -88,8 +88,6 @@ body {
 }
 
 
-/* subtle paper texture */
-
 body::before {
     content: "";
 
@@ -282,8 +280,6 @@ body::before {
     overflow: hidden;
 }
 
-
-/* decorative corner */
 
 #found-form::before {
     content: "";
@@ -542,8 +538,6 @@ body::before {
 }
 
 
-/* Leaflet controls */
-
 .leaflet-control-zoom {
     border:
         1px solid var(--line) !important;
@@ -601,8 +595,6 @@ body::before {
     vertical-align: middle;
 }
 
-
-/* first part of form gets a small section marker */
 
 #title {
     background:
@@ -753,10 +745,6 @@ body::before {
 }
 
 
-/* =========================================================
-   FOOTER
-========================================================= */
-
 footer {
     padding:
         28px 0;
@@ -781,10 +769,6 @@ footer {
 }
 
 
-/* =========================================================
-   DESKTOP FORM LAYOUT
-========================================================= */
-
 @media (min-width: 701px) {
 
     #found-form .form-grid {
@@ -799,10 +783,6 @@ footer {
 
 }
 
-
-/* =========================================================
-   TABLET
-========================================================= */
 
 @media (max-width: 850px) {
 
@@ -823,10 +803,6 @@ footer {
 
 }
 
-
-/* =========================================================
-   MOBILE
-========================================================= */
 
 @media (max-width: 700px) {
 
@@ -893,9 +869,6 @@ footer {
 }
 
 
-/* =========================================================
-   SMALL PHONES
-========================================================= */
 
 @media (max-width: 420px) {
 
@@ -925,9 +898,6 @@ footer {
 }
 
 
-/* =========================================================
-   ACCESSIBILITY
-========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
 
@@ -965,9 +935,9 @@ footer {
 
 <section class="section">
     <div class="wrap" style="max-width:760px;">
-        <span class="eyebrow">Found item report — thank you 🙏</span>
+        <span class="eyebrow">Found item report? thank you 🙏</span>
         <h1>Log what you found</h1>
-        <p>Your photo is <strong>blurred automatically</strong> until a claimant answers your two security questions correctly — this keeps opportunistic false claims out. You'll also earn Good Samaritan points.</p>
+        <p>Your photo is <strong>blurred automatically</strong> until a claimant answers your two security questions correctly. This keeps opportunistic false claims out, You'll also earn Good Samaritan points.</p>
 
         <form id="found-form" class="card" style="margin-top:20px;" enctype="multipart/form-data">
             <div class="form-grid">
@@ -993,11 +963,11 @@ footer {
                     <textarea id="description" placeholder="What you found and any distinguishing marks — avoid naming the owner." required></textarea>
                 </div>
                 <div class="field">
-                    <label for="brand_model">Brand / model <span class="hint">(optional)</span></label>
+                    <label for="brand_model">Brand / model</label>
                     <input type="text" id="brand_model" placeholder="e.g. Nike, iPhone 14">
                 </div>
                 <div class="field">
-                    <label for="condition_notes">Condition <span class="hint">(optional)</span></label>
+                    <label for="condition_notes">Condition</label>
                     <input type="text" id="condition_notes" placeholder="e.g. Good condition, slightly scuffed">
                 </div>
                 <div class="field">
@@ -1049,13 +1019,12 @@ footer {
     </div>
 </section>
 
-<footer><div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative.</div></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/app.js?v=3"></script>
 <script src="js/map.js"></script>
 <script>
-// Fill the reporter's name and email from the signed-in account
+
 function fillReporter() {
     api('me.php').then(({ user }) => {
         if (user) {
@@ -1068,7 +1037,6 @@ function fillReporter() {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Allow today and past dates only — future dates are blocked in the calendar
     const todayStr = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
     const dateField = document.getElementById('event_date');
     dateField.max = todayStr;

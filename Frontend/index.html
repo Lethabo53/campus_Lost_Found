@@ -25,12 +25,12 @@
         <div>
             <span class="eyebrow">Serving the whole campus community</span>
             <h1>Lost something? Someone probably handed it in.</h1>
-            <p class="hero-sub">A digital claim-ticket counter for your campus — report an item in under a minute, get matched automatically, and verify claims before contact details are shared.</p>
+            <p class="hero-sub">A digital claim-ticket counter for your campus. Report an item in under a minute, get matched automatically, and verify claims before contact details are shared.</p>
             <div class="hero-actions">
                 <a class="btn btn-clay" href="auth.html">I lost something</a>
                 <a class="btn btn-sage" href="auth.html">I found something</a>
             </div>
-            <p class="small muted" style="margin-top:16px;">You'll need a free account to report or browse items — it takes less than a minute.</p>
+            <p class="small muted" style="margin-top:16px;">You'll need a free account to report or browse items, it takes less than a minute.</p>
         </div>
         <div>
             <div class="card">
@@ -48,9 +48,9 @@
         <h2>How the claim-ticket system works</h2>
         <div class="form-grid" style="margin-top:18px;">
             <div class="field full" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px;">
-                <div class="card"><h3>1. Report</h3><p>Log a lost or found item with a photo, category, and the exact campus spot — dropped as a pin on the map.</p></div>
-                <div class="card"><h3>2. Match</h3><p>A keyword-and-location matching engine quietly ranks likely pairs the moment a new report comes in.</p></div>
-                <div class="card"><h3>3. Verify</h3><p>Claiming a found item requires answering two questions only the true owner would know — no contact details leak until verified.</p></div>
+                <div class="card"><h3>1. Report</h3><p>Log a lost or found item with a photo, category, and the exact campus spot.</p></div>
+                <div class="card"><h3>2. Match</h3><p>A keyword matching engine quietly ranks likely pairs the moment a new report comes in.</p></div>
+                <div class="card"><h3>3. Verify</h3><p>Claiming a found item requires answering two questions only the true owner would know, no contact details leak until verified.</p></div>
                 <div class="card"><h3>4. Reunite</h3><p>Verified claimants get the finder's contact details, and the finder earns Good Samaritan points on the leaderboard.</p></div>
             </div>
         </div>
@@ -65,13 +65,9 @@
     </div>
 </section>
 
-<footer>
-    <div class="wrap">Campus Lost &amp; Found — a student affairs digital initiative. Built with HTML, CSS, JavaScript, PHP &amp; MySQL.</div>
-</footer>
-
 <script src="js/app.js?v=3"></script>
 <script>
-// If already signed in, skip the landing page and go straight to the app.
+
 if (!location.search.includes('signedout=1')) { api('me.php').then(({ user }) => { if (user) location.href = 'home.html'; }).catch(() => {}); }
 </script>
 </body>
